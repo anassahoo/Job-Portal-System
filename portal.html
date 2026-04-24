@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JobBox – Find Your Dream Job</title>
+<link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800;900&family=Jost:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Mulish',sans-serif;background:#f5f5f5;color:#1a1a2e;}
+.page{display:none;}.page.active{display:block;}
+
+/* ====== TOAST ====== */
+#toast{position:fixed;bottom:28px;right:28px;z-index:9999;display:flex;flex-direction:column;gap:10px;}
+.toast-msg{background:#18191C;color:#fff;padding:13px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.25);display:flex;align-items:center;gap:10px;animation:toastIn .3s ease;min-width:260px;}
+.toast-msg.success{background:#059669;}
+.toast-msg.error{background:#dc2626;}
+.toast-msg.info{background:#0A65CC;}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* ====== AUTH MODAL ====== */
+.auth-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;}
+.auth-overlay.open{display:flex;}
+.auth-card{background:#fff;border-radius:16px;width:440px;max-width:95vw;padding:36px;position:relative;animation:scaleIn .25s ease;}
+@keyframes scaleIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+.auth-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:7px;background:#F7F8FC;border:1px solid #E4E5E8;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+.auth-logo{display:flex;align-items:center;gap:8px;font-family:'Jost',sans-serif;font-weight:800;font-size:20px;color:#1a1a2e;margin-bottom:24px;}
+.auth-logo-box{width:32px;height:32px;background:#0A65CC;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;}
+.auth-tabs{display:flex;gap:4px;background:#F7F8FC;border-radius:8px;padding:4px;margin-bottom:24px;}
+.auth-tab{flex:1;padding:9px;border-radius:6px;border:none;background:transparent;font-family:'Mulish',sans-serif;font-size:14px;font-weight:700;color:#767F8C;cursor:pointer;}
+.auth-tab.active{background:#fff;color:#0A65CC;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.auth-form{display:none;}.auth-form.active{display:block;}
+.auth-field{margin-bottom:16px;}
+.auth-field label{display:block;font-size:13px;font-weight:700;color:#18191C;margin-bottom:6px;}
+.auth-field input{width:100%;padding:11px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
+.auth-field input:focus{border-color:#0A65CC;}
+.auth-field .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.auth-btn{width:100%;padding:13px;background:#0A65CC;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
+.auth-btn:hover{background:#0852a8;}
+.auth-sep{text-align:center;font-size:13px;color:#9CA3AF;margin:14px 0;}
+.auth-switch{text-align:center;font-size:13px;color:#474C54;margin-top:14px;}
+.auth-switch a{color:#0A65CC;font-weight:700;cursor:pointer;text-decoration:none;}
+
+/* ====== APPLY MODAL ====== */
+.apply-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;align-items:center;justify-content:center;}
+.apply-overlay.open{display:flex;}
+.apply-card{background:#fff;border-radius:16px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:32px;position:relative;animation:scaleIn .25s ease;}
+.apply-header{margin-bottom:20px;}
+.apply-header h2{font-family:'Jost',sans-serif;font-size:20px;font-weight:800;color:#18191C;}
+.apply-header p{font-size:13px;color:#767F8C;margin-top:4px;}
+.apply-job-info{background:#F7F8FC;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.apply-job-logo{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;flex-shrink:0;}
+.apply-job-details h3{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;}
+.apply-job-details p{font-size:12px;color:#767F8C;}
+.apply-field{margin-bottom:16px;}
+.apply-field label{display:block;font-size:13px;font-weight:700;color:#18191C;margin-bottom:6px;}
+.apply-field input,.apply-field textarea,.apply-field select{width:100%;padding:11px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;outline:none;transition:border-color .2s;resize:vertical;}
+.apply-field input:focus,.apply-field textarea:focus,.apply-field select:focus{border-color:#0A65CC;}
+.apply-field textarea{min-height:90px;}
+.apply-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.apply-submit{width:100%;padding:13px;background:#0A65CC;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
+.apply-submit:hover{background:#0852a8;}
+
+/* ====== LANDING NAV ====== */
+.jb-nav{background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 60px;height:70px;box-shadow:0 1px 0 #e8e8e8;position:sticky;top:0;z-index:100;}
+.jb-logo{display:flex;align-items:center;gap:8px;font-family:'Jost',sans-serif;font-weight:800;font-size:22px;color:#1a1a2e;cursor:pointer;}
+.jb-logo-icon{width:36px;height:36px;background:#0A65CC;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;}
+.jb-nav-links{display:flex;align-items:center;gap:6px;}
+.jb-nav-links a{padding:8px 14px;font-size:14px;font-weight:600;color:#474C54;text-decoration:none;border-radius:4px;cursor:pointer;}
+.jb-nav-links a:hover,.jb-nav-links a.active{color:#0A65CC;}
+.jb-nav-links a.active{border-bottom:2px solid #0A65CC;}
+.jb-nav-right{display:flex;align-items:center;gap:12px;}
+.jb-nav-right a{font-size:14px;font-weight:700;color:#474C54;text-decoration:none;cursor:pointer;}
+.jb-nav-right a:hover{color:#0A65CC;}
+.btn-signin-nav{padding:10px 22px;border-radius:4px;background:#0A65CC;color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;font-family:'Mulish',sans-serif;}
+.btn-signin-nav:hover{background:#0852a8;}
+
+/* ====== HERO ====== */
+.jb-hero{background:linear-gradient(180deg,#EEF5FF 0%,#fff 100%);padding:80px 60px 60px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;max-width:1280px;margin:0 auto;}
+.jb-hero-left h1{font-family:'Jost',sans-serif;font-size:48px;font-weight:800;line-height:1.18;margin-bottom:18px;color:#18191C;}
+.jb-hero-left h1 span{color:#0A65CC;}
+.jb-hero-left p{font-size:16px;color:#767F8C;line-height:1.7;margin-bottom:30px;max-width:440px;}
+.jb-search-box{background:#fff;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,.08);display:flex;align-items:center;overflow:hidden;margin-bottom:18px;}
+.jb-search-field{display:flex;align-items:center;gap:8px;padding:14px 16px;flex:1;border-right:1px solid #E4E5E8;}
+.jb-search-field svg{width:18px;height:18px;color:#9199A3;flex-shrink:0;}
+.jb-search-field input,.jb-search-field select{border:none;outline:none;font-family:'Mulish',sans-serif;font-size:14px;color:#18191C;background:transparent;width:100%;}
+.jb-search-btn{padding:14px 28px;background:#0A65CC;color:#fff;border:none;font-family:'Mulish',sans-serif;font-size:15px;font-weight:700;cursor:pointer;}
+.jb-search-btn:hover{background:#0852a8;}
+.jb-popular{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;color:#474C54;}
+.jb-popular strong{margin-right:4px;}
+.jb-popular a{color:#0A65CC;text-decoration:none;font-weight:600;cursor:pointer;}
+.jb-hero-right{position:relative;height:400px;}
+.hero-img-main{position:absolute;right:0;top:0;width:340px;height:300px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#c7d8f5,#d8e8ff);display:flex;align-items:center;justify-content:center;font-size:60px;}
+.hero-img-2{position:absolute;left:0;bottom:0;width:220px;height:200px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#d5c5f0,#e8dbff);display:flex;align-items:center;justify-content:center;font-size:40px;}
+.hero-dot-grid{position:absolute;right:-10px;bottom:20px;display:grid;grid-template-columns:repeat(6,8px);gap:5px;}
+.hero-dot-grid span{width:5px;height:5px;border-radius:50%;background:#0A65CC;opacity:.3;display:block;}
+
+/* ====== STATS BAR ====== */
+.jb-stats{background:#fff;border-top:1px solid #E4E5E8;padding:24px 60px;}
+.jb-stats-inner{max-width:1280px;margin:0 auto;display:flex;justify-content:space-around;align-items:center;}
+.jb-stat-item{text-align:center;}
+.jb-stat-item h3{font-family:'Jost',sans-serif;font-size:28px;font-weight:800;color:#0A65CC;}
+.jb-stat-item p{font-size:13px;color:#767F8C;margin-top:2px;}
+.jb-stat-divider{width:1px;height:40px;background:#E4E5E8;}
+
+/* ====== CATEGORIES ====== */
+.jb-section{padding:60px;max-width:1280px;margin:0 auto;}
+.jb-section-head{text-align:center;margin-bottom:40px;}
+.jb-section-head h2{font-family:'Jost',sans-serif;font-size:32px;font-weight:800;color:#18191C;margin-bottom:10px;}
+.jb-section-head p{font-size:15px;color:#767F8C;}
+.jb-cat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.jb-cat-card{background:#fff;border:1px solid #E4E5E8;border-radius:8px;padding:20px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s;}
+.jb-cat-card:hover{border-color:#0A65CC;box-shadow:0 4px 16px rgba(10,101,204,.1);}
+.jb-cat-icon{width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.jb-cat-text h4{font-size:14px;font-weight:700;color:#18191C;margin-bottom:3px;}
+.jb-cat-text p{font-size:12px;color:#767F8C;}
+
+/* ====== HIRING BANNER ====== */
+.jb-hire-wrap{padding:0 60px;max-width:1280px;margin:0 auto 60px;}
+.jb-hire{background:#EEF5FF;border-radius:12px;padding:36px 60px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;}
+.jb-hire-deco{position:absolute;left:30px;bottom:0;font-size:80px;opacity:.6;}
+.jb-hire-deco2{position:absolute;right:200px;bottom:0;font-size:60px;opacity:.5;}
+.jb-hire-text{text-align:center;flex:1;}
+.jb-hire-text p{font-size:16px;color:#474C54;margin-bottom:4px;}
+.jb-hire-text h2{font-family:'Jost',sans-serif;font-size:36px;font-weight:900;color:#18191C;}
+.jb-hire-text h2 span{color:#0A65CC;}
+.jb-hire-text .sub{font-size:16px;color:#474C54;}
+.btn-hero-apply{padding:12px 28px;background:#0A65CC;color:#fff;border:none;border-radius:4px;font-family:'Mulish',sans-serif;font-size:15px;font-weight:700;cursor:pointer;}
+.btn-hero-apply:hover{background:#0852a8;}
+
+/* ====== JOBS OF DAY ====== */
+.jb-jobs-wrap{background:#fff;padding:60px 0;}
+.jb-jobs-inner{max-width:1280px;margin:0 auto;padding:0 60px;}
+.jb-job-filter-tabs{display:flex;gap:4px;margin-bottom:28px;border-bottom:1px solid #E4E5E8;overflow-x:auto;}
+.jb-job-tab{padding:10px 18px;font-size:14px;font-weight:600;color:#767F8C;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:'Mulish',sans-serif;}
+.jb-job-tab.active{color:#0A65CC;border-bottom-color:#0A65CC;}
+.jb-jobs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.jb-job-card{background:#fff;border:1px solid #E4E5E8;border-radius:8px;padding:20px;cursor:pointer;transition:all .2s;}
+.jb-job-card:hover{border-color:#0A65CC;box-shadow:0 6px 20px rgba(10,101,204,.1);}
+.jb-jc-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.jb-company-logo{width:46px;height:46px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;}
+.jb-featured-badge{font-size:10px;font-weight:700;color:#0A65CC;background:#EEF5FF;padding:3px 8px;border-radius:3px;}
+.jb-job-name{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;margin-bottom:6px;}
+.jb-job-company{font-size:12px;color:#767F8C;margin-bottom:4px;}
+.jb-job-type{font-size:11px;color:#767F8C;margin-bottom:12px;}
+.jb-job-desc{font-size:12px;color:#767F8C;line-height:1.6;margin-bottom:14px;}
+.jb-job-skills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.jb-skill-tag{font-size:11px;font-weight:600;padding:4px 10px;border-radius:3px;border:1px solid #E4E5E8;color:#474C54;}
+.jb-job-footer{display:flex;align-items:center;justify-content:space-between;}
+.jb-salary{font-family:'Jost',sans-serif;font-size:15px;font-weight:800;color:#18191C;}
+.jb-salary span{font-size:11px;font-weight:400;color:#767F8C;}
+.btn-apply-sm{padding:8px 16px;background:#EEF5FF;color:#0A65CC;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Mulish',sans-serif;}
+.btn-apply-sm:hover{background:#0A65CC;color:#fff;}
+
+/* ====== NEWS SECTION ====== */
+.jb-news-wrap{padding:60px;max-width:1280px;margin:0 auto;}
+.jb-news-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.jb-news-card{background:#fff;border:1px solid #E4E5E8;border-radius:10px;overflow:hidden;cursor:pointer;transition:all .2s;}
+.jb-news-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);transform:translateY(-2px);}
+.jb-news-img{height:180px;display:flex;align-items:center;justify-content:center;font-size:64px;}
+.jb-news-body{padding:18px;}
+.jb-news-tag{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;background:#EEF5FF;color:#0A65CC;margin-bottom:10px;}
+.jb-news-title{font-family:'Jost',sans-serif;font-size:16px;font-weight:700;color:#18191C;margin-bottom:8px;line-height:1.4;}
+.jb-news-meta{font-size:12px;color:#9CA3AF;}
+
+/* ====== FOOTER ====== */
+.jb-footer{background:#18191C;padding:50px 60px 24px;color:#fff;}
+.jb-footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;max-width:1280px;margin:0 auto 40px;}
+.jb-footer-brand .logo{font-family:'Jost',sans-serif;font-size:22px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.jb-footer-brand p{font-size:13px;color:#9CA3AF;line-height:1.7;}
+.jb-footer-col h4{font-size:14px;font-weight:700;margin-bottom:16px;color:#fff;}
+.jb-footer-col a{display:block;font-size:13px;color:#9CA3AF;text-decoration:none;margin-bottom:10px;cursor:pointer;}
+.jb-footer-col a:hover{color:#0A65CC;}
+.jb-footer-bottom{border-top:1px solid #2D2D2D;padding-top:20px;text-align:center;font-size:13px;color:#767F8C;max-width:1280px;margin:0 auto;}
+
+/* ====== LANDING JOB MODAL ====== */
+.jlm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center;}
+.jlm-overlay.open{display:flex;}
+.jlm-card{background:#fff;border-radius:16px;width:540px;max-height:85vh;overflow-y:auto;padding:30px;position:relative;animation:scaleIn .25s ease;}
+.jlm-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:7px;background:#F7F8FC;border:1px solid #E4E5E8;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+.jlm-head{display:flex;gap:14px;margin-bottom:18px;align-items:flex-start;}
+.jlm-logo{width:54px;height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;flex-shrink:0;}
+.jlm-title-text h2{font-family:'Jost',sans-serif;font-size:20px;font-weight:800;color:#18191C;}
+.jlm-title-text p{font-size:13px;color:#767F8C;margin-top:3px;}
+.jlm-info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.jlm-info-box{background:#F7F8FC;border-radius:8px;padding:12px 14px;}
+.jlm-info-box .label{font-size:11px;color:#9CA3AF;margin-bottom:3px;}
+.jlm-info-box .value{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;}
+.jlm-section h4{font-family:'Jost',sans-serif;font-size:14px;font-weight:700;color:#18191C;margin:14px 0 8px;}
+.jlm-section p,.jlm-section li{font-size:13px;color:#767F8C;line-height:1.7;}
+.jlm-section ul{padding-left:16px;}
+.jlm-footer{display:flex;gap:10px;margin-top:20px;}
+.btn-jlm-apply{flex:1;padding:12px;background:#0A65CC;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+.btn-jlm-save{padding:12px 20px;border:1.5px solid #0A65CC;background:transparent;color:#0A65CC;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+
+/* ====== DASHBOARD LAYOUT ====== */
+.jobie-layout{display:flex;min-height:100vh;background:#F7F8FC;}
+.jobie-sidebar{width:220px;background:#6454F0;min-height:100vh;display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:50;}
+.jobie-logo{padding:22px 20px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.jobie-logo-box{width:32px;height:32px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6454F0;font-size:16px;}
+.jobie-logo-text{font-family:'Jost',sans-serif;font-size:22px;font-weight:800;color:#fff;}
+.jobie-nav{flex:1;padding:8px 12px;}
+.jobie-nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;color:rgba(255,255,255,.65);font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;margin-bottom:2px;text-decoration:none;}
+.jobie-nav-item:hover{background:rgba(255,255,255,.12);color:#fff;}
+.jobie-nav-item.active{background:#fff;color:#6454F0;}
+.jobie-nav-item .ni{font-size:18px;width:20px;text-align:center;}
+.jobie-nav-badge{margin-left:auto;background:rgba(255,255,255,.25);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:2px 7px;}
+.jobie-nav-item.active .jobie-nav-badge{background:#6454F0;color:#fff;}
+.jobie-sidebar-footer{padding:16px 20px;}
+.jobie-sidebar-user{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,.12);border-radius:10px;}
+.jobie-sidebar-avatar{width:34px;height:34px;border-radius:50%;background:#fff;color:#6454F0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.jobie-sidebar-uname{font-size:13px;font-weight:700;color:#fff;}
+.jobie-sidebar-role{font-size:11px;color:rgba(255,255,255,.65);}
+.jobie-main{margin-left:220px;flex:1;display:flex;flex-direction:column;}
+.jobie-topbar{background:#fff;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid #EBEBF0;position:sticky;top:0;z-index:40;}
+.jobie-page-title{font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;}
+.jobie-topbar-right{display:flex;align-items:center;gap:14px;}
+.jobie-search-top{display:flex;align-items:center;gap:8px;background:#F7F8FC;border:1px solid #EBEBF0;border-radius:8px;padding:9px 14px;}
+.jobie-search-top input{border:none;outline:none;background:transparent;font-family:'Mulish',sans-serif;font-size:13px;color:#18191C;width:200px;}
+.topbar-icon-btn{width:38px;height:38px;border-radius:8px;background:#F7F8FC;border:1px solid #EBEBF0;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:17px;}
+.topbar-dot{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:#F04438;border:1.5px solid #fff;}
+.jobie-user{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.jobie-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6454F0,#9B8CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.jobie-user-info h4{font-size:13px;font-weight:700;color:#18191C;}
+.jobie-user-info p{font-size:11px;color:#767F8C;}
+.jobie-content{padding:24px 28px;flex:1;}
+
+/* ====== DASH SECTIONS ====== */
+.dash-section{display:none;}.dash-section.active{display:block;}
+
+/* HOME */
+.dash-welcome{margin-bottom:24px;}
+.dash-welcome h2{font-family:'Jost',sans-serif;font-size:22px;font-weight:800;color:#18191C;}
+.dash-welcome p{font-size:14px;color:#767F8C;margin-top:4px;}
+.dash-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.dash-stat-card{background:#fff;border:1px solid #EBEBF0;border-radius:12px;padding:20px;display:flex;align-items:center;gap:16px;}
+.dash-stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.dash-stat-info h3{font-family:'Jost',sans-serif;font-size:24px;font-weight:800;color:#18191C;}
+.dash-stat-info p{font-size:12px;color:#767F8C;margin-top:2px;}
+.dash-stat-change{font-size:11px;font-weight:700;margin-top:6px;}
+.dash-stat-change.up{color:#059669;}
+.dash-stat-change.down{color:#dc2626;}
+.dash-recent-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;}
+.dash-card{background:#fff;border:1px solid #EBEBF0;border-radius:12px;padding:20px;}
+.dash-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.dash-card-head h3{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;}
+.dash-card-head a{font-size:12px;color:#6454F0;text-decoration:none;font-weight:700;cursor:pointer;}
+.dash-app-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #F0F0F5;}
+.dash-app-row:last-child{border-bottom:none;}
+.dash-app-logo{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+.dash-app-info{flex:1;}
+.dash-app-info h4{font-size:13px;font-weight:700;color:#18191C;}
+.dash-app-info p{font-size:11px;color:#767F8C;}
+.dash-app-status{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
+.status-pending{background:#FFF7ED;color:#D97706;}
+.status-review{background:#EEF5FF;color:#0A65CC;}
+.status-interview{background:#F0FDF4;color:#059669;}
+.status-rejected{background:#FEF2F2;color:#dc2626;}
+.dash-news-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #F0F0F5;cursor:pointer;}
+.dash-news-item:last-child{border-bottom:none;}
+.dash-news-img{width:60px;height:50px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.dash-news-text h4{font-size:13px;font-weight:700;color:#18191C;line-height:1.4;}
+.dash-news-text p{font-size:11px;color:#9CA3AF;margin-top:4px;}
+
+/* FIND JOB PAGE */
+.jsb-bar{background:#fff;border:1px solid #EBEBF0;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:12px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.jsb-field{display:flex;align-items:center;gap:8px;flex:1;}
+.jsb-field input,.jsb-field select{border:none;outline:none;font-family:'Mulish',sans-serif;font-size:13px;color:#18191C;background:transparent;width:100%;}
+.jsb-divider{width:1px;height:28px;background:#EBEBF0;}
+.btn-jfind{padding:10px 22px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+.jobie-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;}
+.chip-label{font-size:13px;color:#767F8C;}
+.jobie-chip{padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid #EBEBF0;background:#fff;color:#474C54;cursor:pointer;font-family:'Mulish',sans-serif;}
+.jobie-chip.active{background:#6454F0;color:#fff;border-color:#6454F0;}
+.jobie-chip:hover:not(.active){border-color:#6454F0;color:#6454F0;}
+.find-results-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.find-results-head h3{font-family:'Jost',sans-serif;font-size:16px;font-weight:700;color:#18191C;}
+.find-results-head p{font-size:12px;color:#767F8C;}
+.jobie-jobs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.jobie-job-card{background:#fff;border:1.5px solid #EBEBF0;border-radius:12px;padding:18px;cursor:pointer;transition:all .2s;position:relative;}
+.jobie-job-card:hover{border-color:#6454F0;box-shadow:0 4px 20px rgba(100,84,240,.12);}
+.jjc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.jjc-logo{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;}
+.jjc-bookmark{width:30px;height:30px;border-radius:7px;background:#F7F8FC;border:1px solid #EBEBF0;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#767F8C;font-size:15px;}
+.jjc-bookmark.saved{background:#EEF5FF;color:#6454F0;border-color:#6454F0;}
+.jjc-title{font-family:'Jost',sans-serif;font-size:14px;font-weight:700;color:#18191C;margin-bottom:4px;}
+.jjc-company{font-size:12px;color:#767F8C;margin-bottom:10px;}
+.jjc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;}
+.jjc-tag{font-size:10px;font-weight:700;padding:4px 9px;border-radius:4px;}
+.jjc-tag-blue{background:#EEF5FF;color:#0A65CC;}
+.jjc-tag-green{background:#ECFDF5;color:#059669;}
+.jjc-tag-orange{background:#FFF7ED;color:#D97706;}
+.jjc-tag-purple{background:#F5F3FF;color:#7C3AED;}
+.jjc-footer{display:flex;align-items:center;justify-content:space-between;}
+.jjc-salary{font-family:'Jost',sans-serif;font-size:14px;font-weight:800;color:#6454F0;}
+.jjc-location{font-size:11px;color:#767F8C;}
+.btn-jjc-apply{padding:7px 14px;background:#6454F0;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Mulish',sans-serif;}
+.btn-jjc-apply:hover{background:#5141d6;}
+
+/* SAVED JOBS */
+.saved-empty{text-align:center;padding:60px 20px;color:#767F8C;}
+.saved-empty .empty-icon{font-size:60px;margin-bottom:16px;}
+.saved-empty h3{font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;margin-bottom:8px;}
+
+/* APPLICATIONS */
+.apps-table{background:#fff;border-radius:12px;overflow:hidden;border:1px solid #EBEBF0;}
+.apps-table-head{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;padding:14px 20px;background:#F7F8FC;border-bottom:1px solid #EBEBF0;}
+.apps-table-head span{font-size:12px;font-weight:700;color:#9CA3AF;}
+.apps-table-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;padding:14px 20px;border-bottom:1px solid #F0F0F5;align-items:center;}
+.apps-table-row:last-child{border-bottom:none;}
+.apps-row-job h4{font-size:13px;font-weight:700;color:#18191C;}
+.apps-row-job p{font-size:11px;color:#767F8C;}
+.apps-table-row span{font-size:12px;color:#474C54;}
+.apps-btn-withdraw{padding:6px 12px;border:1px solid #E4E5E8;background:#fff;border-radius:6px;font-size:11px;font-weight:700;color:#dc2626;cursor:pointer;font-family:'Mulish',sans-serif;}
+
+/* MESSAGES */
+.msg-layout{display:grid;grid-template-columns:280px 1fr;gap:16px;height:calc(100vh - 140px);}
+.msg-list{background:#fff;border-radius:12px;border:1px solid #EBEBF0;overflow-y:auto;}
+.msg-list-head{padding:16px;border-bottom:1px solid #EBEBF0;font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;}
+.msg-item{display:flex;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #F0F0F5;transition:background .15s;}
+.msg-item:hover,.msg-item.active{background:#F5F3FF;}
+.msg-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+.msg-item-info{flex:1;min-width:0;}
+.msg-item-info h4{font-size:13px;font-weight:700;color:#18191C;}
+.msg-item-info p{font-size:11px;color:#767F8C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msg-time{font-size:10px;color:#9CA3AF;white-space:nowrap;}
+.msg-unread{width:8px;height:8px;border-radius:50%;background:#6454F0;flex-shrink:0;margin-top:4px;}
+.msg-chat{background:#fff;border-radius:12px;border:1px solid #EBEBF0;display:flex;flex-direction:column;}
+.msg-chat-head{padding:16px 20px;border-bottom:1px solid #EBEBF0;display:flex;align-items:center;gap:12px;}
+.msg-chat-head h3{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;}
+.msg-chat-head p{font-size:12px;color:#767F8C;}
+.msg-chat-head .online-dot{width:8px;height:8px;border-radius:50%;background:#059669;margin-left:8px;}
+.msg-messages{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;}
+.msg-bubble{max-width:70%;}
+.msg-bubble.sent{align-self:flex-end;}
+.msg-bubble.recv{align-self:flex-start;}
+.msg-bubble-text{padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.6;}
+.msg-bubble.sent .msg-bubble-text{background:#6454F0;color:#fff;border-bottom-right-radius:4px;}
+.msg-bubble.recv .msg-bubble-text{background:#F7F8FC;color:#18191C;border-bottom-left-radius:4px;}
+.msg-bubble-time{font-size:10px;color:#9CA3AF;margin-top:4px;}
+.msg-bubble.sent .msg-bubble-time{text-align:right;}
+.msg-input-bar{padding:14px 20px;border-top:1px solid #EBEBF0;display:flex;gap:10px;align-items:center;}
+.msg-input-bar input{flex:1;padding:10px 14px;border:1.5px solid #EBEBF0;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;outline:none;}
+.msg-input-bar input:focus{border-color:#6454F0;}
+.btn-msg-send{padding:10px 20px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* NEWS PAGE */
+.news-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.news-card-full{background:#fff;border-radius:12px;overflow:hidden;border:1px solid #EBEBF0;cursor:pointer;transition:all .2s;}
+.news-card-full:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);transform:translateY(-2px);}
+.news-img-full{height:180px;display:flex;align-items:center;justify-content:center;font-size:64px;}
+.news-body-full{padding:18px;}
+.news-badge{display:inline-block;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;background:#EEF5FF;color:#0A65CC;margin-bottom:8px;}
+.news-title-full{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;margin-bottom:8px;line-height:1.4;}
+.news-meta-full{font-size:11px;color:#9CA3AF;}
+
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:220px 1fr;gap:20px;}
+.settings-nav{background:#fff;border-radius:12px;border:1px solid #EBEBF0;padding:12px;height:fit-content;}
+.settings-nav-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;font-size:13px;font-weight:600;color:#474C54;cursor:pointer;margin-bottom:2px;}
+.settings-nav-item:hover{background:#F7F8FC;}
+.settings-nav-item.active{background:#F5F3FF;color:#6454F0;}
+.settings-panel{background:#fff;border-radius:12px;border:1px solid #EBEBF0;padding:24px;}
+.settings-panel-section{display:none;}.settings-panel-section.active{display:block;}
+.settings-panel h3{font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;margin-bottom:20px;}
+.settings-field{margin-bottom:18px;}
+.settings-field label{display:block;font-size:13px;font-weight:700;color:#18191C;margin-bottom:6px;}
+.settings-field input,.settings-field select,.settings-field textarea{width:100%;padding:11px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;outline:none;}
+.settings-field input:focus,.settings-field select:focus{border-color:#6454F0;}
+.settings-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.settings-save{padding:11px 28px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #F0F0F5;}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row-text h4{font-size:14px;font-weight:600;color:#18191C;}
+.toggle-row-text p{font-size:12px;color:#767F8C;margin-top:2px;}
+.toggle-switch{width:40px;height:22px;background:#E4E5E8;border-radius:11px;position:relative;cursor:pointer;transition:background .2s;}
+.toggle-switch.on{background:#6454F0;}
+.toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;}
+.toggle-switch.on::after{transform:translateX(18px);}
+.avatar-upload{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.avatar-big{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#6454F0,#9B8CFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;}
+.btn-upload-photo{padding:10px 18px;border:1.5px solid #6454F0;color:#6454F0;background:#fff;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* RECRUITERS PAGE */
+.recruiters-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.recruiter-card{background:#fff;border-radius:12px;border:1px solid #EBEBF0;padding:24px;text-align:center;transition:all .2s;}
+.recruiter-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);}
+.recruiter-avatar{width:72px;height:72px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;}
+.recruiter-name{font-family:'Jost',sans-serif;font-size:16px;font-weight:700;color:#18191C;margin-bottom:4px;}
+.recruiter-company{font-size:13px;color:#767F8C;margin-bottom:12px;}
+.recruiter-stats{display:flex;justify-content:center;gap:20px;margin-bottom:16px;}
+.recruiter-stat h4{font-family:'Jost',sans-serif;font-size:16px;font-weight:700;color:#18191C;}
+.recruiter-stat p{font-size:11px;color:#767F8C;}
+.btn-connect{padding:9px 24px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* CANDIDATES PAGE */
+.candidates-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.candidate-card{background:#fff;border-radius:12px;border:1px solid #EBEBF0;padding:20px;text-align:center;transition:all .2s;}
+.candidate-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);}
+.candidate-avatar{width:60px;height:60px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;}
+.candidate-name{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;margin-bottom:3px;}
+.candidate-role{font-size:12px;color:#767F8C;margin-bottom:10px;}
+.candidate-skills{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:12px;}
+.candidate-skill{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:#F5F3FF;color:#6454F0;}
+.btn-view-profile{padding:8px 18px;border:1.5px solid #6454F0;color:#6454F0;background:#fff;border-radius:8px;font-family:'Mulish',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* BLOG PAGE */
+.blog-grid{display:grid;grid-template-columns:2fr 1fr;gap:24px;}
+.blog-posts{display:flex;flex-direction:column;gap:20px;}
+.blog-post-card{background:#fff;border-radius:12px;border:1px solid #EBEBF0;padding:20px;display:flex;gap:16px;cursor:pointer;transition:all .2s;}
+.blog-post-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);}
+.blog-post-img{width:100px;height:90px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;}
+.blog-post-body h3{font-family:'Jost',sans-serif;font-size:16px;font-weight:700;color:#18191C;margin-bottom:6px;line-height:1.4;}
+.blog-post-body p{font-size:13px;color:#767F8C;line-height:1.6;margin-bottom:8px;}
+.blog-post-meta{font-size:11px;color:#9CA3AF;}
+.blog-post-meta span{margin-right:12px;}
+.blog-sidebar-card{background:#fff;border-radius:12px;border:1px solid #EBEBF0;padding:18px;margin-bottom:16px;}
+.blog-sidebar-card h3{font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;margin-bottom:14px;}
+.blog-sidebar-tag{display:inline-block;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1px solid #E4E5E8;color:#474C54;cursor:pointer;margin:4px;transition:all .15s;}
+.blog-sidebar-tag:hover{border-color:#6454F0;color:#6454F0;}
+
+/* DASH JOB MODAL */
+.djm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center;}
+.djm-overlay.open{display:flex;}
+.djm-card{background:#fff;border-radius:16px;width:540px;max-height:85vh;overflow-y:auto;padding:30px;position:relative;animation:scaleIn .25s ease;}
+.djm-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:7px;background:#F7F8FC;border:1px solid #E4E5E8;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+</style>
+</head>
+<body>
+
+<!-- TOAST CONTAINER -->
+<div id="toast"></div>
+
+<!-- ========== AUTH MODAL ========== -->
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-card">
+    <button class="auth-close" onclick="closeAuth()">✕</button>
+    <div class="auth-logo"><div class="auth-logo-box">💼</div>JobBox</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('signin')">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+    <!-- SIGN IN -->
+    <div id="form-signin" class="auth-form active">
+      <div class="auth-field"><label>Email Address</label><input type="email" id="si-email" placeholder="you@example.com"/></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="si-pass" placeholder="Enter password"/></div>
+      <button class="auth-btn" onclick="doSignIn()">Sign In →</button>
+      <div class="auth-sep">— OR —</div>
+      <div class="auth-switch">Don't have an account? <a onclick="switchAuthTab('signup')">Create one</a></div>
+    </div>
+    <!-- SIGN UP -->
+    <div id="form-signup" class="auth-form">
+      <div class="auth-field">
+        <div class="row">
+          <div><label>First Name</label><input type="text" id="su-fname" placeholder="John"/></div>
+          <div><label>Last Name</label><input type="text" id="su-lname" placeholder="Doe"/></div>
+        </div>
+      </div>
+      <div class="auth-field"><label>Email Address</label><input type="email" id="su-email" placeholder="you@example.com"/></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="su-pass" placeholder="Min 6 characters"/></div>
+      <div class="auth-field"><label>I am a</label>
+        <select id="su-role" style="width:100%;padding:11px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;outline:none;">
+          <option value="jobseeker">Job Seeker</option>
+          <option value="recruiter">Recruiter / Employer</option>
+        </select>
+      </div>
+      <button class="auth-btn" onclick="doSignUp()">Create Account →</button>
+      <div class="auth-sep">— OR —</div>
+      <div class="auth-switch">Already have an account? <a onclick="switchAuthTab('signin')">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== APPLY MODAL ========== -->
+<div id="apply-overlay" class="apply-overlay">
+  <div class="apply-card">
+    <button class="auth-close" onclick="closeApply()">✕</button>
+    <div class="apply-header">
+      <h2>Apply for this Job</h2>
+      <p>Fill in your details below to submit your application.</p>
+    </div>
+    <div class="apply-job-info">
+      <div class="apply-job-logo" id="apply-logo" style="background:#6454F0;">G</div>
+      <div class="apply-job-details">
+        <h3 id="apply-job-title">Job Title</h3>
+        <p id="apply-job-sub">Company · Location</p>
+      </div>
+    </div>
+    <div class="apply-field"><label>Full Name</label><input type="text" id="apply-name" placeholder="Your full name"/></div>
+    <div class="apply-row">
+      <div class="apply-field"><label>Email</label><input type="email" id="apply-email" placeholder="your@email.com"/></div>
+      <div class="apply-field"><label>Phone</label><input type="tel" id="apply-phone" placeholder="+1 234 567 890"/></div>
+    </div>
+    <div class="apply-field"><label>LinkedIn / Portfolio URL</label><input type="url" id="apply-url" placeholder="https://linkedin.com/in/you"/></div>
+    <div class="apply-field"><label>Cover Letter</label><textarea id="apply-cover" placeholder="Tell them why you're the perfect fit..."></textarea></div>
+    <div class="apply-field"><label>Years of Experience</label>
+      <select id="apply-exp" style="width:100%;padding:11px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;outline:none;">
+        <option>Less than 1 year</option><option>1–2 years</option><option>3–5 years</option><option>5–10 years</option><option>10+ years</option>
+      </select>
+    </div>
+    <button class="apply-submit" onclick="submitApplication()">Submit Application →</button>
+  </div>
+</div>
+
+<!-- ========== DASHBOARD JOB MODAL ========== -->
+<div id="djm-overlay" class="djm-overlay" onclick="closeDJM(event)">
+  <div class="djm-card">
+    <button class="djm-close" onclick="document.getElementById('djm-overlay').classList.remove('open')">✕</button>
+    <div style="display:flex;gap:14px;margin-bottom:18px;align-items:flex-start;">
+      <div id="djm-logo" style="width:54px;height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;flex-shrink:0;background:#6454F0;">G</div>
+      <div><h2 id="djm-title" style="font-family:'Jost',sans-serif;font-size:20px;font-weight:800;color:#18191C;"></h2><p id="djm-company" style="font-size:13px;color:#767F8C;margin-top:3px;"></p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="background:#F7F8FC;border-radius:8px;padding:12px 14px;"><div style="font-size:11px;color:#9CA3AF;margin-bottom:3px;">Salary</div><div id="djm-salary" style="font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;"></div></div>
+      <div style="background:#F7F8FC;border-radius:8px;padding:12px 14px;"><div style="font-size:11px;color:#9CA3AF;margin-bottom:3px;">Work Type</div><div id="djm-type" style="font-family:'Jost',sans-serif;font-size:15px;font-weight:700;color:#18191C;"></div></div>
+    </div>
+    <div id="djm-tags" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+    <div>
+      <h4 style="font-family:'Jost',sans-serif;font-size:14px;font-weight:700;color:#18191C;margin-bottom:8px;">About this Role</h4>
+      <p style="font-size:13px;color:#767F8C;line-height:1.7;">We're looking for a talented professional to join our growing team. You'll work on real-world problems and help build products used by millions.</p>
+      <h4 style="font-family:'Jost',sans-serif;font-size:14px;font-weight:700;color:#18191C;margin:14px 0 8px;">Requirements</h4>
+      <ul style="padding-left:16px;font-size:13px;color:#767F8C;line-height:2;">
+        <li>2+ years of professional experience</li>
+        <li>Proficiency in relevant technologies</li>
+        <li>Strong communication & teamwork skills</li>
+        <li>Self-starter with a growth mindset</li>
+      </ul>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button onclick="openApplyFromDash()" style="flex:1;padding:12px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Apply Now →</button>
+      <button onclick="saveJobFromModal()" style="padding:12px 20px;border:1.5px solid #6454F0;background:transparent;color:#6454F0;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">💾 Save Job</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== LANDING JOB MODAL ========== -->
+<div id="jlm-overlay" class="jlm-overlay" onclick="closeJLM(event)">
+  <div class="jlm-card">
+    <button class="jlm-close" onclick="document.getElementById('jlm-overlay').classList.remove('open')">✕</button>
+    <div class="jlm-head">
+      <div class="jlm-logo" id="jlm-logo">A</div>
+      <div class="jlm-title-text"><h2 id="jlm-title">Job Title</h2><p id="jlm-company">Company · Location</p></div>
+    </div>
+    <div class="jlm-info-row">
+      <div class="jlm-info-box"><div class="label">Salary</div><div class="value" id="jlm-salary">$500/hr</div></div>
+      <div class="jlm-info-box"><div class="label">Job Type</div><div class="value" id="jlm-type">Full-Time</div></div>
+    </div>
+    <div class="jlm-section">
+      <h4>Job Description</h4>
+      <p>We are looking for a skilled professional to join our team. You'll work on exciting projects, collaborate with talented colleagues, and make a real impact in a fast-growing company.</p>
+      <h4>Requirements</h4>
+      <ul><li>3+ years of relevant experience</li><li>Strong problem-solving and communication skills</li><li>Ability to work in a fast-paced environment</li><li>Team player with a growth mindset</li></ul>
+      <h4>Benefits</h4>
+      <ul><li>Competitive salary package</li><li>Remote-friendly work culture</li><li>Health &amp; dental insurance</li><li>Annual $2,000 learning budget</li></ul>
+    </div>
+    <div class="jlm-footer">
+      <button class="btn-jlm-apply" onclick="openApplyFromLanding()">Apply Now →</button>
+      <button class="btn-jlm-save" onclick="saveLandingJob()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== PAGE 1: LANDING =================== -->
+<div id="page-landing" class="page active">
+
+  <nav class="jb-nav">
+    <div class="jb-logo" onclick="scrollToTop()">
+      <div class="jb-logo-icon">💼</div>JobBox
+    </div>
+    <div class="jb-nav-links">
+      <a class="active" onclick="scrollToTop()">Home</a>
+      <a onclick="openAuth()">Find a Job</a>
+      <a onclick="openAuth()">Recruiters</a>
+      <a onclick="openAuth()">Candidates</a>
+      <a onclick="openAuth()">Blog</a>
+    </div>
+    <div class="jb-nav-right">
+      <a onclick="openAuth('signup')">Register</a>
+      <button class="btn-signin-nav" onclick="openAuth('signin')">Sign In</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div style="background:linear-gradient(180deg,#EEF5FF 0%,#fff 60%);">
+    <div class="jb-hero">
+      <div class="jb-hero-left">
+        <h1>The <span>Easiest Way</span><br>to Get Your New Job</h1>
+        <p>Each month, more than 3 million job seekers turn to JobBox in their search for work, making over 140,000 applications every single day.</p>
+        <div class="jb-search-box">
+          <div class="jb-search-field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            <select id="landing-cat">
+              <option>All Industries</option><option>Technology</option><option>Finance</option><option>Design</option><option>Marketing</option><option>Human Resource</option>
+            </select>
+          </div>
+          <div class="jb-search-field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+            <input type="text" id="landing-loc" placeholder="Location"/>
+          </div>
+          <div class="jb-search-field" style="border-right:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="landing-kw" placeholder="Keywords"/>
+          </div>
+          <button class="jb-search-btn" onclick="landingSearch()">Search</button>
+        </div>
+        <div class="jb-popular">
+          <strong>Popular:</strong>
+          <a onclick="setLandingSearch('Content Writer')">Content Writer</a>,
+          <a onclick="setLandingSearch('Finance')">Finance</a>,
+          <a onclick="setLandingSearch('HR')">Human Resource</a>,
+          <a onclick="setLandingSearch('Management')">Management</a>
+        </div>
+      </div>
+      <div class="jb-hero-right">
+        <div class="hero-img-main"><image src="cnnn.jpg" style="width: 650px; height:auto"; border: 2px solid black>/div>
+        <div class="hero-img-2"></div>
+        <div class="hero-dot-grid">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="jb-stats">
+    <div class="jb-stats-inner">
+      <div class="jb-stat-item"><h3>1.8K+</h3><p>Jobs Posted Daily</p></div>
+      <div class="jb-stat-divider"></div>
+      <div class="jb-stat-item"><h3>840K+</h3><p>Total Job Listings</p></div>
+      <div class="jb-stat-divider"></div>
+      <div class="jb-stat-item"><h3>3.2M+</h3><p>Monthly Visitors</p></div>
+      <div class="jb-stat-divider"></div>
+      <div class="jb-stat-item"><h3>140K+</h3><p>Applications / Day</p></div>
+      <div class="jb-stat-divider"></div>
+      <div class="jb-stat-item"><h3>98%</h3><p>Satisfaction Rate</p></div>
+    </div>
+  </div>
+
+  <!-- CATEGORIES -->
+  <div class="jb-section">
+    <div class="jb-section-head">
+      <h2>Browse by category</h2>
+      <p>Find the job that's perfect for you. About 800+ new jobs everyday</p>
+    </div>
+    <div class="jb-cat-grid">
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#FFF0EA;">🛒</div><div class="jb-cat-text"><h4>Retail &amp; Product</h4><p>3 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#EEF5FF;">✏️</div><div class="jb-cat-text"><h4>Content Writer</h4><p>8 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#F0FDF4;">👥</div><div class="jb-cat-text"><h4>Human Resource</h4><p>3 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#FEF9EE;">🔬</div><div class="jb-cat-text"><h4>Market Research</h4><p>4 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#FFF0EA;">🏪</div><div class="jb-cat-text"><h4>Retail &amp; Product</h4><p>4 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#EEF5FF;">💻</div><div class="jb-cat-text"><h4>Software</h4><p>4 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#F0FDF4;">💰</div><div class="jb-cat-text"><h4>Finance</h4><p>5 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#FFF7ED;">📊</div><div class="jb-cat-text"><h4>Management</h4><p>5 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#FDF4FF;">📣</div><div class="jb-cat-text"><h4>Marketing &amp; Sale</h4><p>4 Jobs Available</p></div></div>
+      <div class="jb-cat-card" onclick="openAuth()"><div class="jb-cat-icon" style="background:#EEF5FF;">⚙️</div><div class="jb-cat-text"><h4>Engineering</h4><p>4 Jobs Available</p></div></div>
+    </div>
+  </div>
+
+  <!-- HIRING BANNER -->
+  <div class="jb-hire-wrap">
+    <div class="jb-hire">
+      <div class="jb-hire-deco">🧍</div>
+      <div class="jb-hire-deco2">🧍‍♀️</div>
+      <div class="jb-hire-text">
+        <p>WE ARE</p>
+        <h2><span>HIRING</span></h2>
+        <div class="sub">Let's Work Together &amp; Explore Opportunities</div>
+      </div>
+      <button class="btn-hero-apply" onclick="openAuth()">Apply Now →</button>
+    </div>
+  </div>
+
+  <!-- JOBS OF THE DAY -->
+  <div class="jb-jobs-wrap">
+    <div class="jb-jobs-inner">
+      <div class="jb-section-head"><h2>Jobs of the day</h2><p>Search and connect with the right candidates faster</p></div>
+      <div class="jb-job-filter-tabs" id="landing-tabs">
+        <button class="jb-job-tab active" onclick="filterLandingJobs(this,'all')">All Jobs</button>
+        <button class="jb-job-tab" onclick="filterLandingJobs(this,'content')">✏️ Content Writer</button>
+        <button class="jb-job-tab" onclick="filterLandingJobs(this,'finance')">💰 Finance</button>
+        <button class="jb-job-tab" onclick="filterLandingJobs(this,'hr')">👥 Human Resource</button>
+        <button class="jb-job-tab" onclick="filterLandingJobs(this,'management')">📊 Management</button>
+        <button class="jb-job-tab" onclick="filterLandingJobs(this,'software')">💻 Software</button>
+        <button class="jb-job-tab" onclick="filterLandingJobs(this,'marketing')">📣 Marketing</button>
+      </div>
+      <div class="jb-jobs-grid" id="landing-jobs-grid"></div>
+    </div>
+  </div>
+
+  <!-- NEWS SECTION -->
+  <div class="jb-news-wrap">
+    <div class="jb-section-head"><h2>Latest Career News</h2><p>Stay up to date with job market trends and career tips</p></div>
+    <div class="jb-news-grid">
+      <div class="jb-news-card"><div class="jb-news-img" style="background:#EEF5FF;">📰</div><div class="jb-news-body"><span class="jb-news-tag">Career Tips</span><div class="jb-news-title">5 Ways to Stand Out in a Competitive Job Market</div><div class="jb-news-meta">By Sarah K. &nbsp;·&nbsp; Apr 18, 2026</div></div></div>
+      <div class="jb-news-card"><div class="jb-news-img" style="background:#F0FDF4;">💡</div><div class="jb-news-body"><span class="jb-news-tag">Industry</span><div class="jb-news-title">Tech Hiring Surges: What You Need to Know in 2026</div><div class="jb-news-meta">By Mark T. &nbsp;·&nbsp; Apr 15, 2026</div></div></div>
+      <div class="jb-news-card"><div class="jb-news-img" style="background:#FFF7ED;">🚀</div><div class="jb-news-body"><span class="jb-news-tag">Remote Work</span><div class="jb-news-title">Remote Work Policies: Companies Doubling Down in 2026</div><div class="jb-news-meta">By James L. &nbsp;·&nbsp; Apr 12, 2026</div></div></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="jb-footer">
+    <div class="jb-footer-grid">
+      <div class="jb-footer-brand">
+        <div class="logo">💼 JobBox</div>
+        <p>The world's leading job platform connecting talent with opportunity. Over 3 million job seekers find their perfect role every month.</p>
+      </div>
+      <div class="jb-footer-col">
+        <h4>For Job Seekers</h4>
+        <a onclick="openAuth()">Browse Jobs</a>
+        <a onclick="openAuth()">My Applications</a>
+        <a onclick="openAuth()">Saved Jobs</a>
+        <a onclick="openAuth()">Career Resources</a>
+      </div>
+      <div class="jb-footer-col">
+        <h4>For Employers</h4>
+        <a onclick="openAuth()">Post a Job</a>
+        <a onclick="openAuth()">Browse Candidates</a>
+        <a onclick="openAuth()">Recruiter Tools</a>
+        <a onclick="openAuth()">Pricing Plans</a>
+      </div>
+      <div class="jb-footer-col">
+        <h4>Company</h4>
+        <a onclick="openAuth()">About Us</a>
+        <a onclick="openAuth()">Blog</a>
+        <a onclick="openAuth()">Careers at JobBox</a>
+        <a onclick="openAuth()">Contact</a>
+      </div>
+    </div>
+    <div class="jb-footer-bottom">© 2026 JobBox Inc. All rights reserved.</div>
+  </footer>
+</div>
+
+<!-- =================== PAGE 2: DASHBOARD =================== -->
+<div id="page-dashboard" class="page">
+  <div class="jobie-layout">
+    <!-- SIDEBAR -->
+    <div class="jobie-sidebar">
+      <div class="jobie-logo" onclick="goToLanding()">
+        <div class="jobie-logo-box">💼</div>
+        <span class="jobie-logo-text">JobBox</span>
+      </div>
+      <nav class="jobie-nav">
+        <a class="jobie-nav-item active" onclick="switchDash('home',this)"><span class="ni">🏠</span> Home</a>
+        <a class="jobie-nav-item" onclick="switchDash('find',this)"><span class="ni">🔍</span> Find a Job</a>
+        <a class="jobie-nav-item" onclick="switchDash('saved',this)"><span class="ni">💾</span> Saved Jobs <span class="jobie-nav-badge" id="saved-badge">0</span></a>
+        <a class="jobie-nav-item" onclick="switchDash('applications',this)"><span class="ni">📋</span> Applications <span class="jobie-nav-badge" id="app-badge">0</span></a>
+        <a class="jobie-nav-item" onclick="switchDash('messages',this)"><span class="ni">💬</span> Messages <span class="jobie-nav-badge">3</span></a>
+        <a class="jobie-nav-item" onclick="switchDash('recruiters',this)"><span class="ni">👔</span> Recruiters</a>
+        <a class="jobie-nav-item" onclick="switchDash('candidates',this)"><span class="ni">👤</span> Candidates</a>
+        <a class="jobie-nav-item" onclick="switchDash('blog',this)"><span class="ni">📰</span> Blog</a>
+        <a class="jobie-nav-item" onclick="switchDash('news',this)"><span class="ni">📡</span> News</a>
+        <a class="jobie-nav-item" onclick="switchDash('settings',this)"><span class="ni">⚙️</span> Settings</a>
+      </nav>
+      <div class="jobie-sidebar-footer">
+        <div class="jobie-sidebar-user">
+          <div class="jobie-sidebar-avatar" id="sidebar-avatar">J</div>
+          <div>
+            <div class="jobie-sidebar-uname" id="sidebar-name">Guest User</div>
+            <div class="jobie-sidebar-role">Job Seeker</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <a class="jobie-nav-item" style="background:rgba(255,60,60,.15);color:#ff8080;" onclick="doSignOut()"><span class="ni">🚪</span> Sign Out</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="jobie-main">
+      <!-- TOPBAR -->
+      <div class="jobie-topbar">
+        <div class="jobie-page-title" id="dash-page-title">Home</div>
+        <div class="jobie-topbar-right">
+          <div class="jobie-search-top">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" placeholder="Quick search jobs..." id="top-search" onkeydown="if(event.key==='Enter'){switchDash('find',null);doJobSearch();}"/>
+          </div>
+          <div class="topbar-icon-btn" onclick="switchDash('messages',null);document.querySelector('[onclick*=messages]').click()">🔔<span class="topbar-dot"></span></div>
+          <div class="jobie-user" onclick="switchDash('settings',null)">
+            <div class="jobie-avatar" id="topbar-avatar">J</div>
+            <div class="jobie-user-info"><h4 id="topbar-name">Guest</h4><p id="topbar-role">Job Seeker</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <div class="jobie-content">
+
+        <!-- HOME SECTION -->
+        <div id="dash-home" class="dash-section active">
+          <div class="dash-welcome">
+            <h2>Welcome back, <span id="welcome-name">Friend</span>! 👋</h2>
+            <p>Here's what's happening with your job search today.</p>
+          </div>
+          <div class="dash-stats-grid">
+            <div class="dash-stat-card">
+              <div class="dash-stat-icon" style="background:#EEF5FF;">📋</div>
+              <div class="dash-stat-info">
+                <h3 id="stat-applied">0</h3>
+                <p>Jobs Applied</p>
+                <div class="dash-stat-change up" id="stat-applied-change">↑ 0 this week</div>
+              </div>
+            </div>
+            <div class="dash-stat-card">
+              <div class="dash-stat-icon" style="background:#F5F3FF;">💾</div>
+              <div class="dash-stat-info">
+                <h3 id="stat-saved">0</h3>
+                <p>Saved Jobs</p>
+                <div class="dash-stat-change up">↑ updated today</div>
+              </div>
+            </div>
+            <div class="dash-stat-card">
+              <div class="dash-stat-icon" style="background:#F0FDF4;">🎯</div>
+              <div class="dash-stat-info">
+                <h3 id="stat-interviews">0</h3>
+                <p>Interviews</p>
+                <div class="dash-stat-change up">↑ 0 scheduled</div>
+              </div>
+            </div>
+            <div class="dash-stat-card">
+              <div class="dash-stat-icon" style="background:#FFF7ED;">👁️</div>
+              <div class="dash-stat-info">
+                <h3>48</h3>
+                <p>Profile Views</p>
+                <div class="dash-stat-change up">↑ 12% this week</div>
+              </div>
+            </div>
+          </div>
+          <div class="dash-recent-grid">
+            <div class="dash-card">
+              <div class="dash-card-head"><h3>Recent Applications</h3><a onclick="switchDash('applications',null)">View All →</a></div>
+              <div id="home-recent-apps"><div style="text-align:center;padding:30px;color:#9CA3AF;font-size:13px;">No applications yet. <a onclick="switchDash('find',null)" style="color:#6454F0;cursor:pointer;">Find jobs →</a></div></div>
+            </div>
+            <div class="dash-card">
+              <div class="dash-card-head"><h3>Career News</h3><a onclick="switchDash('news',null)">See All →</a></div>
+              <div class="dash-news-item" onclick="switchDash('news',null)"><div class="dash-news-img" style="background:#EEF5FF;">📰</div><div class="dash-news-text"><h4>5 Ways to Stand Out in a Competitive Market</h4><p>Apr 18, 2026</p></div></div>
+              <div class="dash-news-item" onclick="switchDash('news',null)"><div class="dash-news-img" style="background:#F0FDF4;">💡</div><div class="dash-news-text"><h4>Tech Hiring Surges in 2026</h4><p>Apr 15, 2026</p></div></div>
+              <div class="dash-news-item" onclick="switchDash('news',null)"><div class="dash-news-img" style="background:#FFF7ED;">🚀</div><div class="dash-news-text"><h4>Remote Work Policies: Companies Doubling Down</h4><p>Apr 12, 2026</p></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FIND A JOB SECTION -->
+        <div id="dash-find" class="dash-section">
+          <div class="jsb-bar">
+            <div class="jsb-field">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#767F8C" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" id="job-kw" placeholder="Job title, keywords..."/>
+            </div>
+            <div class="jsb-divider"></div>
+            <div class="jsb-field">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#767F8C" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>
+              <input type="text" id="job-loc" placeholder="Location or Remote"/>
+            </div>
+            <div class="jsb-divider"></div>
+            <div class="jsb-field">
+              <select id="job-type" style="border:none;outline:none;font-family:'Mulish',sans-serif;font-size:13px;color:#18191C;background:transparent;width:100%;">
+                <option value="">All Types</option><option>Full-Time</option><option>Part-Time</option><option>Remote</option><option>Internship</option><option>Contract</option>
+              </select>
+            </div>
+            <button class="btn-jfind" onclick="doJobSearch()">🔍 Find Jobs</button>
+          </div>
+          <div class="jobie-chips">
+            <span class="chip-label">Trending:</span>
+            <span class="jobie-chip active" onclick="chipFilter(this,'all')">All</span>
+            <span class="jobie-chip" onclick="chipFilter(this,'software')">Software</span>
+            <span class="jobie-chip" onclick="chipFilter(this,'design')">Design</span>
+            <span class="jobie-chip" onclick="chipFilter(this,'marketing')">Marketing</span>
+            <span class="jobie-chip" onclick="chipFilter(this,'finance')">Finance</span>
+            <span class="jobie-chip" onclick="chipFilter(this,'remote')">Remote</span>
+          </div>
+          <div class="find-results-head">
+            <div><h3>Available Positions</h3><p id="jobs-count">Showing all jobs</p></div>
+            <select style="padding:7px 12px;border:1px solid #EBEBF0;border-radius:6px;font-family:'Mulish',sans-serif;font-size:12px;outline:none;" onchange="sortJobs(this.value)">
+              <option>Most Recent</option><option>Highest Salary</option><option>Most Relevant</option>
+            </select>
+          </div>
+          <div class="jobie-jobs-grid" id="dash-jobs-grid"></div>
+        </div>
+
+        <!-- SAVED JOBS SECTION -->
+        <div id="dash-saved" class="dash-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div><h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;">Saved Jobs</h3><p style="font-size:13px;color:#767F8C;margin-top:4px;" id="saved-count">0 saved jobs</p></div>
+          </div>
+          <div class="jobie-jobs-grid" id="saved-jobs-grid">
+            <div class="saved-empty" style="grid-column:1/-1"><div class="empty-icon">💾</div><h3>No Saved Jobs Yet</h3><p>Save jobs you're interested in and come back to them anytime.</p><button onclick="switchDash('find',null)" style="margin-top:16px;padding:10px 24px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Browse Jobs</button></div>
+          </div>
+        </div>
+
+        <!-- APPLICATIONS SECTION -->
+        <div id="dash-applications" class="dash-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div><h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;">My Applications</h3><p style="font-size:13px;color:#767F8C;margin-top:4px;" id="apps-count-text">0 applications</p></div>
+          </div>
+          <div class="apps-table">
+            <div class="apps-table-head"><span>Job</span><span>Company</span><span>Date Applied</span><span>Status</span><span>Action</span></div>
+            <div id="apps-table-body"><div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">You haven't applied to any jobs yet. <a onclick="switchDash('find',null)" style="color:#6454F0;cursor:pointer;">Find jobs →</a></div></div>
+          </div>
+        </div>
+
+        <!-- MESSAGES SECTION -->
+        <div id="dash-messages" class="dash-section">
+          <h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;margin-bottom:20px;">Messages</h3>
+          <div class="msg-layout">
+            <div class="msg-list">
+              <div class="msg-list-head">Inbox <span style="background:#6454F0;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">3</span></div>
+              <div class="msg-item active" onclick="openMsg(this,'Google HR','hr@google.com','Regarding your application')">
+                <div class="msg-avatar" style="background:#4285F4;">G</div>
+                <div class="msg-item-info"><h4>Google HR</h4><p>We reviewed your application...</p></div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span class="msg-time">2h ago</span><span class="msg-unread"></span></div>
+              </div>
+              <div class="msg-item" onclick="openMsg(this,'Tesla Recruiting','recruit@tesla.com','Interview invitation')">
+                <div class="msg-avatar" style="background:#E31937;">T</div>
+                <div class="msg-item-info"><h4>Tesla Recruiting</h4><p>We'd love to invite you for...</p></div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span class="msg-time">1d ago</span><span class="msg-unread"></span></div>
+              </div>
+              <div class="msg-item" onclick="openMsg(this,'Meta Talent','talent@meta.com','Your profile caught our eye')">
+                <div class="msg-avatar" style="background:#0866FF;">M</div>
+                <div class="msg-item-info"><h4>Meta Talent</h4><p>Hi! Your profile is a great match...</p></div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;"><span class="msg-time">3d ago</span><span class="msg-unread"></span></div>
+              </div>
+            </div>
+            <div class="msg-chat">
+              <div class="msg-chat-head">
+                <div class="msg-avatar" id="msg-avatar" style="background:#4285F4;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;">G</div>
+                <div style="flex:1;"><h3 id="msg-from">Google HR</h3><p id="msg-subject">Regarding your application</p></div>
+                <span class="online-dot" style="width:8px;height:8px;border-radius:50%;background:#059669;"></span>
+              </div>
+              <div class="msg-messages" id="msg-chat-area">
+                <div class="msg-bubble recv"><div class="msg-bubble-text">Hi there! We've reviewed your application for the Senior Software Engineer role and we're impressed with your background. Would you be available for a 30-minute call this week?</div><div class="msg-bubble-time">Today at 10:30 AM</div></div>
+                <div class="msg-bubble sent"><div class="msg-bubble-text">Thank you for reaching out! I'm very excited about this opportunity. I'm available Tuesday or Wednesday afternoon. Would either of those work?</div><div class="msg-bubble-time">Today at 11:15 AM</div></div>
+                <div class="msg-bubble recv"><div class="msg-bubble-text">Wednesday at 3 PM works perfectly. I'll send you a calendar invite. Looking forward to speaking with you!</div><div class="msg-bubble-time">Today at 11:42 AM</div></div>
+              </div>
+              <div class="msg-input-bar">
+                <input type="text" id="msg-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()"/>
+                <button class="btn-msg-send" onclick="sendMessage()">Send ✈️</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECRUITERS SECTION -->
+        <div id="dash-recruiters" class="dash-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;">Top Recruiters</h3><input type="text" placeholder="Search recruiters..." style="padding:9px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;outline:none;width:220px;"/></div>
+          <div class="recruiters-grid">
+            <div class="recruiter-card"><div class="recruiter-avatar" style="background:#4285F4;">G</div><div class="recruiter-name">Sarah Johnson</div><div class="recruiter-company">Google · HR Lead</div><div class="recruiter-stats"><div class="recruiter-stat"><h4>142</h4><p>Jobs Posted</p></div><div class="recruiter-stat"><h4>4.9★</h4><p>Rating</p></div></div><button class="btn-connect" onclick="showToast('Connection request sent to Sarah!','success')">Connect</button></div>
+            <div class="recruiter-card"><div class="recruiter-avatar" style="background:#E31937;">T</div><div class="recruiter-name">Mark Rivera</div><div class="recruiter-company">Tesla · Talent Acquisition</div><div class="recruiter-stats"><div class="recruiter-stat"><h4>89</h4><p>Jobs Posted</p></div><div class="recruiter-stat"><h4>4.7★</h4><p>Rating</p></div></div><button class="btn-connect" onclick="showToast('Connection request sent to Mark!','success')">Connect</button></div>
+            <div class="recruiter-card"><div class="recruiter-avatar" style="background:#0866FF;">M</div><div class="recruiter-name">Priya Patel</div><div class="recruiter-company">Meta · Senior Recruiter</div><div class="recruiter-stats"><div class="recruiter-stat"><h4>210</h4><p>Jobs Posted</p></div><div class="recruiter-stat"><h4>4.8★</h4><p>Rating</p></div></div><button class="btn-connect" onclick="showToast('Connection request sent to Priya!','success')">Connect</button></div>
+            <div class="recruiter-card"><div class="recruiter-avatar" style="background:#FF6900;">A</div><div class="recruiter-name">James Liu</div><div class="recruiter-company">Amazon · Recruiter</div><div class="recruiter-stats"><div class="recruiter-stat"><h4>178</h4><p>Jobs Posted</p></div><div class="recruiter-stat"><h4>4.6★</h4><p>Rating</p></div></div><button class="btn-connect" onclick="showToast('Connection request sent to James!','success')">Connect</button></div>
+            <div class="recruiter-card"><div class="recruiter-avatar" style="background:#6454F0;">N</div><div class="recruiter-name">Nina Okafor</div><div class="recruiter-company">Netflix · HR Manager</div><div class="recruiter-stats"><div class="recruiter-stat"><h4>95</h4><p>Jobs Posted</p></div><div class="recruiter-stat"><h4>4.9★</h4><p>Rating</p></div></div><button class="btn-connect" onclick="showToast('Connection request sent to Nina!','success')">Connect</button></div>
+            <div class="recruiter-card"><div class="recruiter-avatar" style="background:#0A65CC;">A</div><div class="recruiter-name">Ahmed Hassan</div><div class="recruiter-company">Airbnb · Talent Lead</div><div class="recruiter-stats"><div class="recruiter-stat"><h4>67</h4><p>Jobs Posted</p></div><div class="recruiter-stat"><h4>4.5★</h4><p>Rating</p></div></div><button class="btn-connect" onclick="showToast('Connection request sent to Ahmed!','success')">Connect</button></div>
+          </div>
+        </div>
+
+        <!-- CANDIDATES SECTION -->
+        <div id="dash-candidates" class="dash-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;">Browse Candidates</h3><input type="text" placeholder="Search candidates..." style="padding:9px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;outline:none;width:220px;"/></div>
+          <div class="candidates-grid">
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#6454F0;">AL</div><div class="candidate-name">Alex Lee</div><div class="candidate-role">Full Stack Developer</div><div class="candidate-skills"><span class="candidate-skill">React</span><span class="candidate-skill">Node.js</span><span class="candidate-skill">Python</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#059669;">MK</div><div class="candidate-name">Maria Kim</div><div class="candidate-role">UX Designer</div><div class="candidate-skills"><span class="candidate-skill">Figma</span><span class="candidate-skill">Sketch</span><span class="candidate-skill">XD</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#D97706;">JS</div><div class="candidate-name">John Smith</div><div class="candidate-role">Data Scientist</div><div class="candidate-skills"><span class="candidate-skill">Python</span><span class="candidate-skill">ML</span><span class="candidate-skill">SQL</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#dc2626;">PR</div><div class="candidate-name">Priya Rao</div><div class="candidate-role">Product Manager</div><div class="candidate-skills"><span class="candidate-skill">Agile</span><span class="candidate-skill">Jira</span><span class="candidate-skill">GA</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#0A65CC;">DM</div><div class="candidate-name">David Moore</div><div class="candidate-role">DevOps Engineer</div><div class="candidate-skills"><span class="candidate-skill">AWS</span><span class="candidate-skill">Docker</span><span class="candidate-skill">K8s</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#7C3AED;">SN</div><div class="candidate-name">Sophie N.</div><div class="candidate-role">Marketing Manager</div><div class="candidate-skills"><span class="candidate-skill">SEO</span><span class="candidate-skill">Analytics</span><span class="candidate-skill">Ads</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#BE185D;">RC</div><div class="candidate-name">Ryan Chen</div><div class="candidate-role">Backend Engineer</div><div class="candidate-skills"><span class="candidate-skill">Go</span><span class="candidate-skill">Rust</span><span class="candidate-skill">Redis</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+            <div class="candidate-card"><div class="candidate-avatar" style="background:#047857;">LA</div><div class="candidate-name">Layla Ahmed</div><div class="candidate-role">Finance Analyst</div><div class="candidate-skills"><span class="candidate-skill">Excel</span><span class="candidate-skill">CFA</span><span class="candidate-skill">SAP</span></div><button class="btn-view-profile" onclick="showToast('Profile opened!','info')">View Profile</button></div>
+          </div>
+        </div>
+
+        <!-- BLOG SECTION -->
+        <div id="dash-blog" class="dash-section">
+          <h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;margin-bottom:20px;">Blog</h3>
+          <div class="blog-grid">
+            <div class="blog-posts">
+              <div class="blog-post-card"><div class="blog-post-img" style="background:#EEF5FF;">📝</div><div class="blog-post-body"><h3>How to Write a Resume That Actually Gets Noticed in 2026</h3><p>In today's competitive job market, your resume has just 7 seconds to make an impression. Here's how to make every second count with modern formatting and strategic keywords.</p><div class="blog-post-meta"><span>📅 Apr 20, 2026</span><span>👤 Sarah K.</span><span>⏱️ 5 min read</span></div></div></div>
+              <div class="blog-post-card"><div class="blog-post-img" style="background:#F0FDF4;">💼</div><div class="blog-post-body"><h3>Top 10 High-Demand Skills Employers Are Looking for Right Now</h3><p>From AI fluency to emotional intelligence, we break down exactly what skills are getting candidates hired in 2026 across industries.</p><div class="blog-post-meta"><span>📅 Apr 17, 2026</span><span>👤 Mark T.</span><span>⏱️ 8 min read</span></div></div></div>
+              <div class="blog-post-card"><div class="blog-post-img" style="background:#FFF7ED;">🏠</div><div class="blog-post-body"><h3>Remote Work vs. Office: What Employers Really Think in 2026</h3><p>A survey of 500 hiring managers reveals surprising insights about remote work preferences and what candidates should know before negotiating.</p><div class="blog-post-meta"><span>📅 Apr 14, 2026</span><span>👤 James L.</span><span>⏱️ 6 min read</span></div></div></div>
+            </div>
+            <div>
+              <div class="blog-sidebar-card"><h3>Popular Tags</h3><span class="blog-sidebar-tag" onclick="showToast('Filtering by Resume Tips','info')">Resume Tips</span><span class="blog-sidebar-tag" onclick="showToast('Filtering by Remote Work','info')">Remote Work</span><span class="blog-sidebar-tag" onclick="showToast('Filtering by Career Growth','info')">Career Growth</span><span class="blog-sidebar-tag" onclick="showToast('Filtering by Tech Jobs','info')">Tech Jobs</span><span class="blog-sidebar-tag" onclick="showToast('Filtering by Interview Prep','info')">Interview Prep</span><span class="blog-sidebar-tag" onclick="showToast('Filtering by Salary Tips','info')">Salary Tips</span></div>
+              <div class="blog-sidebar-card"><h3>Most Read</h3><div style="display:flex;flex-direction:column;gap:10px;"><div style="font-size:13px;color:#18191C;cursor:pointer;padding-bottom:10px;border-bottom:1px solid #F0F0F5;" onclick="showToast('Opening article...','info')">📌 Negotiating Your First Salary: A Complete Guide</div><div style="font-size:13px;color:#18191C;cursor:pointer;padding-bottom:10px;border-bottom:1px solid #F0F0F5;" onclick="showToast('Opening article...','info')">📌 LinkedIn vs JobBox: Which Works Better?</div><div style="font-size:13px;color:#18191C;cursor:pointer;" onclick="showToast('Opening article...','info')">📌 Switching Careers After 30: Real Stories</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NEWS SECTION -->
+        <div id="dash-news" class="dash-section">
+          <h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;margin-bottom:20px;">Career & Industry News</h3>
+          <div class="news-grid">
+            <div class="news-card-full"><div class="news-img-full" style="background:#EEF5FF;">📰</div><div class="news-body-full"><span class="news-badge">Career Tips</span><div class="news-title-full">5 Ways to Stand Out in a Competitive Job Market</div><div class="news-meta-full">By Sarah K. &nbsp;·&nbsp; Apr 18, 2026</div></div></div>
+            <div class="news-card-full"><div class="news-img-full" style="background:#F0FDF4;">💡</div><div class="news-body-full"><span class="news-badge">Tech Industry</span><div class="news-title-full">Tech Hiring Surges: What You Need to Know in 2026</div><div class="news-meta-full">By Mark T. &nbsp;·&nbsp; Apr 15, 2026</div></div></div>
+            <div class="news-card-full"><div class="news-img-full" style="background:#FFF7ED;">🏠</div><div class="news-body-full"><span class="news-badge">Remote Work</span><div class="news-title-full">Companies Doubling Down on Remote Work Policies</div><div class="news-meta-full">By James L. &nbsp;·&nbsp; Apr 12, 2026</div></div></div>
+            <div class="news-card-full"><div class="news-img-full" style="background:#FDF4FF;">🤖</div><div class="news-body-full"><span class="news-badge">AI & Jobs</span><div class="news-title-full">AI Won't Replace You: But People Using AI Will</div><div class="news-meta-full">By Dr. Emily R. &nbsp;·&nbsp; Apr 10, 2026</div></div></div>
+            <div class="news-card-full"><div class="news-img-full" style="background:#F5F3FF;">💸</div><div class="news-body-full"><span class="news-badge">Salary Trends</span><div class="news-title-full">2026 Salary Report: Which Roles Saw Biggest Gains?</div><div class="news-meta-full">By Finance Desk &nbsp;·&nbsp; Apr 8, 2026</div></div></div>
+            <div class="news-card-full"><div class="news-img-full" style="background:#F0FDF4;">🌍</div><div class="news-body-full"><span class="news-badge">Global Jobs</span><div class="news-title-full">Cross-Border Hiring: A New Trend Reshaping Work</div><div class="news-meta-full">By Global Team &nbsp;·&nbsp; Apr 5, 2026</div></div></div>
+          </div>
+        </div>
+
+        <!-- SETTINGS SECTION -->
+        <div id="dash-settings" class="dash-section">
+          <h3 style="font-family:'Jost',sans-serif;font-size:18px;font-weight:700;color:#18191C;margin-bottom:20px;">Settings</h3>
+          <div class="settings-grid">
+            <div class="settings-nav">
+              <div class="settings-nav-item active" onclick="switchSettings('profile',this)">👤 Profile</div>
+              <div class="settings-nav-item" onclick="switchSettings('account',this)">🔐 Account</div>
+              <div class="settings-nav-item" onclick="switchSettings('notifications',this)">🔔 Notifications</div>
+              <div class="settings-nav-item" onclick="switchSettings('privacy',this)">🛡️ Privacy</div>
+              <div class="settings-nav-item" onclick="switchSettings('danger',this)">⚠️ Danger Zone</div>
+            </div>
+            <div class="settings-panel">
+              <!-- PROFILE -->
+              <div id="settings-profile" class="settings-panel-section active">
+                <h3>Profile Information</h3>
+                <div class="avatar-upload">
+                  <div class="avatar-big" id="settings-avatar">J</div>
+                  <div><button class="btn-upload-photo" onclick="showToast('Photo upload feature coming soon!','info')">Upload Photo</button><p style="font-size:11px;color:#9CA3AF;margin-top:6px;">JPG, PNG, max 2MB</p></div>
+                </div>
+                <div class="settings-row">
+                  <div class="settings-field"><label>First Name</label><input type="text" id="s-fname" placeholder="First Name"/></div>
+                  <div class="settings-field"><label>Last Name</label><input type="text" id="s-lname" placeholder="Last Name"/></div>
+                </div>
+                <div class="settings-field"><label>Email</label><input type="email" id="s-email" placeholder="your@email.com"/></div>
+                <div class="settings-field"><label>Phone</label><input type="tel" id="s-phone" placeholder="+1 234 567 890"/></div>
+                <div class="settings-field"><label>Professional Title</label><input type="text" id="s-title" placeholder="e.g. Senior Software Engineer"/></div>
+                <div class="settings-field"><label>Location</label><input type="text" id="s-location" placeholder="City, Country"/></div>
+                <div class="settings-field"><label>Bio</label><textarea id="s-bio" style="width:100%;padding:11px 14px;border:1.5px solid #E4E5E8;border-radius:8px;font-family:'Mulish',sans-serif;font-size:14px;outline:none;min-height:90px;resize:vertical;" placeholder="Tell employers about yourself..."></textarea></div>
+                <button class="settings-save" onclick="saveProfile()">Save Changes</button>
+              </div>
+              <!-- ACCOUNT -->
+              <div id="settings-account" class="settings-panel-section">
+                <h3>Account & Security</h3>
+                <div class="settings-field"><label>Current Password</label><input type="password" placeholder="Enter current password"/></div>
+                <div class="settings-field"><label>New Password</label><input type="password" id="new-pass" placeholder="Min 6 characters"/></div>
+                <div class="settings-field"><label>Confirm New Password</label><input type="password" id="conf-pass" placeholder="Repeat new password"/></div>
+                <button class="settings-save" onclick="changePassword()">Update Password</button>
+              </div>
+              <!-- NOTIFICATIONS -->
+              <div id="settings-notifications" class="settings-panel-section">
+                <h3>Notification Preferences</h3>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Email Alerts for New Jobs</h4><p>Get notified when new jobs match your profile</p></div><div class="toggle-switch on" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Application Status Updates</h4><p>Know when employers view or respond</p></div><div class="toggle-switch on" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Messages Notifications</h4><p>Alert when you receive new messages</p></div><div class="toggle-switch on" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Weekly Job Digest</h4><p>Weekly email with top matching jobs</p></div><div class="toggle-switch" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Marketing Emails</h4><p>Tips, news, and product updates</p></div><div class="toggle-switch" onclick="this.classList.toggle('on')"></div></div>
+                <button class="settings-save" style="margin-top:16px;" onclick="showToast('Notification preferences saved!','success')">Save Preferences</button>
+              </div>
+              <!-- PRIVACY -->
+              <div id="settings-privacy" class="settings-panel-section">
+                <h3>Privacy Settings</h3>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Profile Visibility</h4><p>Allow recruiters to find your profile</p></div><div class="toggle-switch on" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Show Resume to Employers</h4><p>Your resume is accessible by verified employers</p></div><div class="toggle-switch on" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Open to Work Badge</h4><p>Show "Open to Work" on your profile</p></div><div class="toggle-switch on" onclick="this.classList.toggle('on')"></div></div>
+                <div class="toggle-row"><div class="toggle-row-text"><h4>Hide from Current Employer</h4><p>Prevent your current employer from seeing you</p></div><div class="toggle-switch" onclick="this.classList.toggle('on')"></div></div>
+                <button class="settings-save" style="margin-top:16px;" onclick="showToast('Privacy settings saved!','success')">Save Privacy Settings</button>
+              </div>
+              <!-- DANGER -->
+              <div id="settings-danger" class="settings-panel-section">
+                <h3>Danger Zone</h3>
+                <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:20px;margin-bottom:16px;">
+                  <h4 style="font-family:'Jost',sans-serif;font-size:15px;color:#dc2626;margin-bottom:6px;">Delete Account</h4>
+                  <p style="font-size:13px;color:#767F8C;margin-bottom:14px;">Once you delete your account, there is no going back. All your data will be permanently erased.</p>
+                  <button onclick="showToast('Account deletion requires email confirmation. Check your inbox.','error')" style="padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Delete My Account</button>
+                </div>
+                <div style="background:#FFF7ED;border:1px solid #FCD34D;border-radius:10px;padding:20px;">
+                  <h4 style="font-family:'Jost',sans-serif;font-size:15px;color:#D97706;margin-bottom:6px;">Sign Out Everywhere</h4>
+                  <p style="font-size:13px;color:#767F8C;margin-bottom:14px;">This will sign you out from all devices.</p>
+                  <button onclick="doSignOut()" style="padding:10px 20px;background:#D97706;color:#fff;border:none;border-radius:8px;font-family:'Mulish',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Sign Out All Devices</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /layout -->
+</div><!-- /dashboard page -->
+
+<script>
+// ========== STATE ==========
+let currentUser = null;
+let savedJobs = [];
+let applications = [];
+let currentJobForModal = null;
+let currentJobContext = 'landing'; // 'landing' | 'dash'
+
+const JOBS_DATA = [
+  {id:1,title:'Lead Quality Control QA',company:'Ashford',location:'France',type:'Full-Time',salary:'$500/hr',tags:['App','Figma','Java'],color:'#EF4444',category:'software',remote:false},
+  {id:2,title:'React Native Web Developer',company:'Percepta',location:'Germany',type:'Full-Time',salary:'$800/hr',tags:['React','Node.js','Figma'],color:'#3B82F6',category:'software',remote:false},
+  {id:3,title:'Senior System Engineer',company:'Tesla',location:'Denmark',type:'Temporary',salary:'$600/hr',tags:['AWS','Docker','Linux'],color:'#E31937',category:'software',remote:false},
+  {id:4,title:'Full Stack Engineer',company:'Bing Search',location:'New York, USA',type:'Internship',salary:'$800/hr',tags:['Figma','Python','SQL'],color:'#8B5CF6',category:'software',remote:false},
+  {id:5,title:'UI/UX Designer Fulltime',company:'Exela Movers',location:'Australia',type:'Full-Time',salary:'$650/hr',tags:['Figma','Sketch','XD'],color:'#F59E0B',category:'design',remote:false},
+  {id:6,title:'Marketing Manager',company:'BrandAmp',location:'Remote',type:'Remote',salary:'$120K/yr',tags:['SEO','Analytics','Ads'],color:'#059669',category:'marketing',remote:true},
+  {id:7,title:'Finance Analyst',company:'Goldman Sachs',location:'New York',type:'Full-Time',salary:'$140K/yr',tags:['Excel','CFA','SAP'],color:'#1E40AF',category:'finance',remote:false},
+  {id:8,title:'HR Business Partner',company:'Spotify',location:'Sweden',type:'Full-Time',salary:'$90K/yr',tags:['HR','Recruiting','HRIS'],color:'#1DB954',category:'hr',remote:false},
+  {id:9,title:'Content Strategist',company:'HubSpot',location:'Remote',type:'Remote',salary:'$80K/yr',tags:['Writing','SEO','CMS'],color:'#FF7A59',category:'marketing',remote:true},
+  {id:10,title:'Product Manager',company:'Airbnb',location:'San Francisco',type:'Full-Time',salary:'$160K/yr',tags:['Agile','Jira','Analytics'],color:'#FF5A5F',category:'management',remote:false},
+  {id:11,title:'Data Scientist',company:'OpenAI',location:'Remote',type:'Remote',salary:'$180K/yr',tags:['Python','ML','TensorFlow'],color:'#10A37F',category:'software',remote:true},
+  {id:12,title:'DevOps Engineer',company:'Microsoft',location:'Redmond',type:'Full-Time',salary:'$150K/yr',tags:['Azure','K8s','CI/CD'],color:'#0078D4',category:'software',remote:false},
+];
+
+// ========== TOAST ==========
+function showToast(msg, type='info'){
+  const t = document.getElementById('toast');
+  const d = document.createElement('div');
+  d.className = `toast-msg ${type}`;
+  const icons = {success:'✅',error:'❌',info:'ℹ️'};
+  d.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${msg}`;
+  t.appendChild(d);
+  setTimeout(()=>{d.style.opacity='0';d.style.transform='translateY(10px)';d.style.transition='all .3s';setTimeout(()=>d.remove(),300);},3500);
+}
+
+// ========== AUTH ==========
+function openAuth(tab='signin'){
+  document.getElementById('auth-overlay').classList.add('open');
+  switchAuthTab(tab);
+}
+function closeAuth(){document.getElementById('auth-overlay').classList.remove('open');}
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',['signin','signup'][i]===tab));
+  document.getElementById('form-signin').classList.toggle('active',tab==='signin');
+  document.getElementById('form-signup').classList.toggle('active',tab==='signup');
+}
+document.getElementById('auth-overlay').addEventListener('click',function(e){if(e.target===this)closeAuth();});
+
+function doSignIn(){
+  const email=document.getElementById('si-email').value.trim();
+  const pass=document.getElementById('si-pass').value;
+  if(!email||!pass){showToast('Please fill in all fields.','error');return;}
+  const stored = JSON.parse(localStorage.getItem('jb_users')||'[]');
+  const user = stored.find(u=>u.email===email && u.password===pass);
+  if(!user){
+    // allow guest login for demo
+    const guestUser={fname:'Guest',lname:'User',email:email,role:'jobseeker'};
+    loginUser(guestUser);
+    showToast('Signed in as guest (demo mode).','info');
+    return;
+  }
+  loginUser(user);
+  showToast(`Welcome back, ${user.fname}!`,'success');
+}
+
+function doSignUp(){
+  const fname=document.getElementById('su-fname').value.trim();
+  const lname=document.getElementById('su-lname').value.trim();
+  const email=document.getElementById('su-email').value.trim();
+  const pass=document.getElementById('su-pass').value;
+  const role=document.getElementById('su-role').value;
+  if(!fname||!lname||!email||!pass){showToast('Please fill in all fields.','error');return;}
+  if(pass.length<6){showToast('Password must be at least 6 characters.','error');return;}
+  const stored = JSON.parse(localStorage.getItem('jb_users')||'[]');
+  if(stored.find(u=>u.email===email)){showToast('Email already registered. Please sign in.','error');return;}
+  const newUser={fname,lname,email,password:pass,role};
+  stored.push(newUser);
+  localStorage.setItem('jb_users',JSON.stringify(stored));
+  loginUser(newUser);
+  showToast(`Welcome, ${fname}! Account created successfully.`,'success');
+}
+
+function loginUser(user){
+  currentUser = user;
+  closeAuth();
+  document.getElementById('page-landing').classList.remove('active');
+  document.getElementById('page-dashboard').classList.add('active');
+  window.scrollTo(0,0);
+  // Update UI
+  const initials = (user.fname[0]||'G')+(user.lname?user.lname[0]:'');
+  document.getElementById('sidebar-avatar').textContent=initials;
+  document.getElementById('topbar-avatar').textContent=initials;
+  document.getElementById('settings-avatar').textContent=initials;
+  document.getElementById('sidebar-name').textContent=`${user.fname} ${user.lname||''}`.trim();
+  document.getElementById('topbar-name').textContent=user.fname;
+  document.getElementById('topbar-role').textContent=user.role==='recruiter'?'Recruiter':'Job Seeker';
+  document.getElementById('welcome-name').textContent=user.fname;
+  // pre-fill settings
+  if(document.getElementById('s-fname'))document.getElementById('s-fname').value=user.fname||'';
+  if(document.getElementById('s-lname'))document.getElementById('s-lname').value=user.lname||'';
+  if(document.getElementById('s-email'))document.getElementById('s-email').value=user.email||'';
+  renderDashJobs(JOBS_DATA);
+  renderHomeRecentApps();
+  updateStats();
+}
+
+function doSignOut(){
+  currentUser=null;
+  savedJobs=[];
+  applications=[];
+  document.getElementById('page-dashboard').classList.remove('active');
+  document.getElementById('page-landing').classList.add('active');
+  window.scrollTo(0,0);
+  showToast('Signed out successfully.','info');
+}
+
+// ========== LANDING ==========
+function goToLanding(){
+  document.getElementById('page-dashboard').classList.remove('active');
+  document.getElementById('page-landing').classList.add('active');
+  window.scrollTo(0,0);
+}
+function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'});}
+function landingSearch(){
+  const kw=document.getElementById('landing-kw').value||document.getElementById('landing-cat').value;
+  showToast(`Searching for "${kw}"... Sign in to view results.`,'info');
+  setTimeout(()=>openAuth('signin'),800);
+}
+function setLandingSearch(v){document.getElementById('landing-kw').value=v;landingSearch();}
+
+// Landing jobs tab filter
+const LANDING_JOBS=[
+  {title:'Lead Quality Control QA',company:'Ashford',loc:'France',type:'Full-Time',salary:'$500/hr',skills:['App','Figma','Java'],color:'#EF4444',cat:'all'},
+  {title:'React Native Web Developer',company:'Percepta',loc:'Germany',type:'Full-Time',salary:'$800/hr',skills:['App','Figma','PSD'],color:'#3B82F6',cat:'software'},
+  {title:'Senior System Engineer',company:'Tesla',loc:'Denmark',type:'Temporary',salary:'$600/hr',skills:['App','Figma','Java'],color:'#E31937',cat:'software'},
+  {title:'Full Stack Engineer',company:'Bing Search',loc:'New York, USA',type:'Internship',salary:'$800/hr',skills:['Figma'],color:'#8B5CF6',cat:'software'},
+  {title:'UI/UX Designer Fulltime',company:'Exela Movers',loc:'Australia',type:'Full-Time',salary:'$650/hr',skills:['Figma','Sketch'],color:'#F59E0B',cat:'design'},
+  {title:'Content Strategist',company:'HubSpot',loc:'Remote',type:'Remote',salary:'$80K/yr',skills:['Writing','SEO'],color:'#FF7A59',cat:'content'},
+  {title:'Finance Analyst',company:'Goldman Sachs',loc:'New York',type:'Full-Time',salary:'$140K/yr',skills:['Excel','CFA'],color:'#1E40AF',cat:'finance'},
+  {title:'HR Business Partner',company:'Spotify',loc:'Sweden',type:'Full-Time',salary:'$90K/yr',skills:['HR','Recruiting'],color:'#1DB954',cat:'hr'},
+];
+function filterLandingJobs(btn,cat){
+  document.querySelectorAll('.jb-job-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const jobs = cat==='all'?LANDING_JOBS:LANDING_JOBS.filter(j=>j.cat===cat||j.cat==='all');
+  renderLandingJobs(jobs);
+}
+function renderLandingJobs(jobs){
+  const g=document.getElementById('landing-jobs-grid');
+  g.innerHTML=jobs.map(j=>`
+    <div class="jb-job-card" onclick="openLandingJobModal('${j.title}','${j.company}','${j.loc}','${j.type}','${j.salary}','${j.color}')">
+      <div class="jb-jc-top"><div class="jb-company-logo" style="background:${j.color}">${j.company[0]}</div><span class="jb-featured-badge">⚡ Featured</span></div>
+      <div class="jb-job-name">${j.title}</div>
+      <div class="jb-job-company">🏢 ${j.company} &nbsp;·&nbsp; 🌍 ${j.loc}</div>
+      <div class="jb-job-type">📅 ${j.type}</div>
+      <div class="jb-job-desc">Exciting opportunity to join a world-class team. Work on challenging projects with top professionals.</div>
+      <div class="jb-job-skills">${j.skills.map(s=>`<span class="jb-skill-tag">${s}</span>`).join('')}</div>
+      <div class="jb-job-footer"><div class="jb-salary">${j.salary}</div><button class="btn-apply-sm" onclick="event.stopPropagation();openLandingJobModal('${j.title}','${j.company}','${j.loc}','${j.type}','${j.salary}','${j.color}')">Apply Now</button></div>
+    </div>`).join('');
+}
+renderLandingJobs(LANDING_JOBS);
+
+function openLandingJobModal(title,company,loc,type,salary,color){
+  document.getElementById('jlm-logo').textContent=company[0];
+  document.getElementById('jlm-logo').style.background=color;
+  document.getElementById('jlm-title').textContent=title;
+  document.getElementById('jlm-company').textContent=company+' · '+loc;
+  document.getElementById('jlm-salary').textContent=salary;
+  document.getElementById('jlm-type').textContent=type;
+  currentJobForModal={title,company:company+' · '+loc,color,salary,type};
+  currentJobContext='landing';
+  document.getElementById('jlm-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeJLM(e){if(e.target.id==='jlm-overlay'){document.getElementById('jlm-overlay').classList.remove('open');document.body.style.overflow='';}}
+function openApplyFromLanding(){
+  if(!currentUser){
+    document.getElementById('jlm-overlay').classList.remove('open');
+    openAuth('signin');
+    showToast('Please sign in to apply for jobs.','info');
+    return;
+  }
+  document.getElementById('jlm-overlay').classList.remove('open');
+  openApplyModal(currentJobForModal);
+}
+function saveLandingJob(){
+  if(!currentUser){openAuth('signin');showToast('Sign in to save jobs.','info');return;}
+  if(currentJobForModal) saveJob(currentJobForModal);
+  document.getElementById('jlm-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// ========== DASHBOARD SECTIONS ==========
+function switchDash(section, el){
+  document.querySelectorAll('.dash-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('dash-'+section).classList.add('active');
+  if(el){
+    document.querySelectorAll('.jobie-nav-item').forEach(i=>i.classList.remove('active'));
+    el.classList.add('active');
+  } else {
+    document.querySelectorAll('.jobie-nav-item').forEach(i=>{
+      if(i.getAttribute('onclick')&&i.getAttribute('onclick').includes(`'${section}'`))i.classList.add('active');
+    });
+  }
+  const titles={home:'Home',find:'Find a Job',saved:'Saved Jobs',applications:'My Applications',messages:'Messages',recruiters:'Recruiters',candidates:'Candidates',blog:'Blog',news:'News',settings:'Settings'};
+  document.getElementById('dash-page-title').textContent=titles[section]||'Dashboard';
+  if(section==='find')renderDashJobs(JOBS_DATA);
+  if(section==='saved')renderSavedJobs();
+  if(section==='applications')renderApplications();
+}
+
+// ========== FIND JOB ==========
+function doJobSearch(){
+  const kw=document.getElementById('job-kw').value.toLowerCase();
+  const loc=document.getElementById('job-loc').value.toLowerCase();
+  const type=document.getElementById('job-type').value.toLowerCase();
+  const topKw=document.getElementById('top-search').value.toLowerCase();
+  const search = kw||topKw;
+  let filtered=JOBS_DATA.filter(j=>{
+    const matchKw=!search||(j.title.toLowerCase().includes(search)||j.company.toLowerCase().includes(search)||j.tags.some(t=>t.toLowerCase().includes(search)));
+    const matchLoc=!loc||(j.location.toLowerCase().includes(loc)||(loc==='remote'&&j.remote));
+    const matchType=!type||j.type.toLowerCase().includes(type)||(type==='remote'&&j.remote);
+    return matchKw&&matchLoc&&matchType;
+  });
+  renderDashJobs(filtered);
+  document.getElementById('jobs-count').textContent=`Showing ${filtered.length} job${filtered.length!==1?'s':''}`;
+  if(filtered.length===0)showToast('No jobs found. Try different keywords.','info');
+  else showToast(`Found ${filtered.length} matching job${filtered.length!==1?'s':''}!`,'success');
+  document.getElementById('top-search').value='';
+}
+function chipFilter(el, cat){
+  document.querySelectorAll('.jobie-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const filtered=cat==='all'?JOBS_DATA:cat==='remote'?JOBS_DATA.filter(j=>j.remote):JOBS_DATA.filter(j=>j.category===cat);
+  renderDashJobs(filtered);
+  document.getElementById('jobs-count').textContent=`Showing ${filtered.length} job${filtered.length!==1?'s':''}`;
+}
+function sortJobs(val){
+  let jobs=[...JOBS_DATA];
+  if(val==='Highest Salary') jobs.sort((a,b)=>parseInt(b.salary.replace(/[^0-9]/g,''))-parseInt(a.salary.replace(/[^0-9]/g,'')));
+  renderDashJobs(jobs);
+}
+function renderDashJobs(jobs){
+  const g=document.getElementById('dash-jobs-grid');
+  if(!g) return;
+  const tagColors=['jjc-tag-blue','jjc-tag-green','jjc-tag-orange','jjc-tag-purple'];
+  g.innerHTML=jobs.map(j=>{
+    const isSaved=savedJobs.some(s=>s.id===j.id);
+    return `<div class="jobie-job-card">
+      <div class="jjc-header">
+        <div class="jjc-logo" style="background:${j.color}">${j.company[0]}</div>
+        <div class="jjc-bookmark ${isSaved?'saved':''}" onclick="toggleSaveJob(${j.id},this)" title="${isSaved?'Remove from saved':'Save job'}">${isSaved?'🔖':'🏷️'}</div>
+      </div>
+      <div class="jjc-title">${j.title}</div>
+      <div class="jjc-company">🏢 ${j.company} &nbsp;·&nbsp; 📍 ${j.location}</div>
+      <div class="jjc-tags">
+        <span class="jjc-tag jjc-tag-blue">${j.type}</span>
+        ${j.remote?'<span class="jjc-tag jjc-tag-green">Remote</span>':''}
+        ${j.tags.slice(0,2).map((t,i)=>`<span class="jjc-tag ${tagColors[i+2]||tagColors[0]}">${t}</span>`).join('')}
+      </div>
+      <div class="jjc-footer">
+        <div class="jjc-salary">${j.salary}</div>
+        <button class="btn-jjc-apply" onclick="openDashJobModal(${j.id})">View & Apply</button>
+      </div>
+    </div>`;
+  }).join('');
+  if(jobs.length===0)g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:50px;color:#9CA3AF;font-size:14px;">No jobs found matching your criteria.</div>';
+}
+
+function toggleSaveJob(id, el){
+  const job=JOBS_DATA.find(j=>j.id===id);
+  if(!job)return;
+  const idx=savedJobs.findIndex(s=>s.id===id);
+  if(idx>-1){
+    savedJobs.splice(idx,1);
+    el.classList.remove('saved');
+    el.textContent='🏷️';
+    showToast(`"${job.title}" removed from saved jobs.`,'info');
+  } else {
+    savedJobs.push({...job});
+    el.classList.add('saved');
+    el.textContent='🔖';
+    showToast(`"${job.title}" saved!`,'success');
+  }
+  updateSavedBadge();
+  updateStats();
+}
+function updateSavedBadge(){
+  document.getElementById('saved-badge').textContent=savedJobs.length;
+  document.getElementById('stat-saved').textContent=savedJobs.length;
+}
+
+function openDashJobModal(id){
+  const j=JOBS_DATA.find(x=>x.id===id);if(!j)return;
+  document.getElementById('djm-logo').textContent=j.company[0];
+  document.getElementById('djm-logo').style.background=j.color;
+  document.getElementById('djm-title').textContent=j.title;
+  document.getElementById('djm-company').textContent=j.company+' · '+j.location;
+  document.getElementById('djm-salary').textContent=j.salary;
+  document.getElementById('djm-type').textContent=j.type+(j.remote?' · Remote':'');
+  document.getElementById('djm-tags').innerHTML=j.tags.map(t=>`<span class="jjc-tag jjc-tag-blue">${t}</span>`).join('');
+  currentJobForModal={...j,company:j.company+' · '+j.location};
+  currentJobContext='dash';
+  document.getElementById('djm-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeDJM(e){if(e.target.id==='djm-overlay'){document.getElementById('djm-overlay').classList.remove('open');document.body.style.overflow='';}}
+function openApplyFromDash(){
+  document.getElementById('djm-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  openApplyModal(currentJobForModal);
+}
+function saveJobFromModal(){
+  if(currentJobForModal)saveJob(currentJobForModal);
+  document.getElementById('djm-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+function saveJob(job){
+  if(!job)return;
+  const id=job.id||Math.random();
+  if(savedJobs.some(s=>s.id===id)){showToast('Already saved!','info');return;}
+  savedJobs.push({...job,id});
+  updateSavedBadge();
+  updateStats();
+  showToast(`"${job.title}" saved to your list!`,'success');
+}
+
+// ========== APPLY MODAL ==========
+function openApplyModal(job){
+  if(!currentUser){openAuth('signin');showToast('Sign in to apply for jobs.','info');return;}
+  if(!job)return;
+  document.getElementById('apply-logo').textContent=(job.company||'C')[0];
+  document.getElementById('apply-logo').style.background=job.color||'#6454F0';
+  document.getElementById('apply-job-title').textContent=job.title||'';
+  document.getElementById('apply-job-sub').textContent=job.company||'';
+  document.getElementById('apply-name').value=(currentUser.fname+' '+(currentUser.lname||'')).trim();
+  document.getElementById('apply-email').value=currentUser.email||'';
+  document.getElementById('apply-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeApply(){document.getElementById('apply-overlay').classList.remove('open');document.body.style.overflow='';}
+document.getElementById('apply-overlay').addEventListener('click',function(e){if(e.target===this)closeApply();});
+
+function submitApplication(){
+  const name=document.getElementById('apply-name').value.trim();
+  const email=document.getElementById('apply-email').value.trim();
+  const phone=document.getElementById('apply-phone').value.trim();
+  if(!name||!email){showToast('Please fill in required fields.','error');return;}
+  const jobTitle=document.getElementById('apply-job-title').textContent;
+  const jobSub=document.getElementById('apply-job-sub').textContent;
+  const app={
+    id:Date.now(),title:jobTitle,company:jobSub,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+    status:'Pending',color:currentJobForModal?.color||'#6454F0',applicant:{name,email,phone}
+  };
+  applications.push(app);
+  closeApply();
+  document.getElementById('apply-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  showToast(`Application for "${jobTitle}" submitted successfully! 🎉`,'success');
+  updateStats();
+  renderHomeRecentApps();
+  document.getElementById('app-badge').textContent=applications.length;
+  document.getElementById('apps-count-text').textContent=`${applications.length} application${applications.length!==1?'s':''}`;
+}
+
+function renderHomeRecentApps(){
+  const el=document.getElementById('home-recent-apps');
+  if(!el)return;
+  if(applications.length===0){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:#9CA3AF;font-size:13px;">No applications yet. <a onclick="switchDash(\'find\',null)" style="color:#6454F0;cursor:pointer;">Find jobs →</a></div>';
+    return;
+  }
+  el.innerHTML=applications.slice(-5).reverse().map(a=>`
+    <div class="dash-app-row">
+      <div class="dash-app-logo" style="background:${a.color}">${(a.company||'C')[0]}</div>
+      <div class="dash-app-info"><h4>${a.title}</h4><p>${a.company} · ${a.date}</p></div>
+      <span class="dash-app-status status-${a.status.toLowerCase()}">${a.status}</span>
+    </div>`).join('');
+}
+
+function renderApplications(){
+  const el=document.getElementById('apps-table-body');
+  if(!el)return;
+  if(applications.length===0){
+    el.innerHTML='<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:13px;">You haven\'t applied to any jobs yet. <a onclick="switchDash(\'find\',null)" style="color:#6454F0;cursor:pointer;">Find jobs →</a></div>';
+    return;
+  }
+  el.innerHTML=applications.map(a=>`
+    <div class="apps-table-row">
+      <div class="apps-row-job"><h4>${a.title}</h4><p>Applied ${a.date}</p></div>
+      <span>${(a.company||'').split('·')[0].trim()}</span>
+      <span>${a.date}</span>
+      <span class="dash-app-status status-${a.status.toLowerCase()}">${a.status}</span>
+      <button class="apps-btn-withdraw" onclick="withdrawApp(${a.id})">Withdraw</button>
+    </div>`).join('');
+}
+
+function withdrawApp(id){
+  const idx=applications.findIndex(a=>a.id===id);
+  if(idx>-1){
+    const t=applications[idx].title;
+    applications.splice(idx,1);
+    renderApplications();
+    renderHomeRecentApps();
+    updateStats();
+    document.getElementById('app-badge').textContent=applications.length;
+    document.getElementById('apps-count-text').textContent=`${applications.length} application${applications.length!==1?'s':''}`;
+    showToast(`Application for "${t}" withdrawn.`,'info');
+  }
+}
+
+function renderSavedJobs(){
+  const g=document.getElementById('saved-jobs-grid');
+  document.getElementById('saved-count').textContent=`${savedJobs.length} saved job${savedJobs.length!==1?'s':''}`;
+  if(savedJobs.length===0){
+    g.innerHTML='<div class="saved-empty" style="grid-column:1/-1"><div class="empty-icon">💾</div><h3>No Saved Jobs Yet</h3><p>Save jobs you\'re interested in and come back to them anytime.</p><button onclick="switchDash(\'find\',null)" style="margin-top:16px;padding:10px 24px;background:#6454F0;color:#fff;border:none;border-radius:8px;font-family:\'Mulish\',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Browse Jobs</button></div>';
+    return;
+  }
+  const tagColors=['jjc-tag-blue','jjc-tag-green','jjc-tag-orange'];
+  g.innerHTML=savedJobs.map(j=>`
+    <div class="jobie-job-card">
+      <div class="jjc-header">
+        <div class="jjc-logo" style="background:${j.color||'#6454F0'}">${(j.company||'C')[0]}</div>
+        <div class="jjc-bookmark saved" onclick="removeSavedJob(${j.id},this)" title="Remove from saved">🔖</div>
+      </div>
+      <div class="jjc-title">${j.title}</div>
+      <div class="jjc-company">🏢 ${j.company} &nbsp;·&nbsp; 📍 ${j.location||''}</div>
+      <div class="jjc-tags"><span class="jjc-tag jjc-tag-blue">${j.type||'Full-Time'}</span>${(j.tags||[]).slice(0,2).map((t,i)=>`<span class="jjc-tag ${tagColors[i+1]||tagColors[0]}">${t}</span>`).join('')}</div>
+      <div class="jjc-footer">
+        <div class="jjc-salary">${j.salary||'Competitive'}</div>
+        <button class="btn-jjc-apply" onclick="openApplyModal(${JSON.stringify(j).replace(/"/g,'&quot;')})">Apply Now</button>
+      </div>
+    </div>`).join('');
+}
+
+function removeSavedJob(id, el){
+  const idx=savedJobs.findIndex(s=>s.id===id);
+  if(idx>-1){
+    const t=savedJobs[idx].title;
+    savedJobs.splice(idx,1);
+    updateSavedBadge();
+    updateStats();
+    renderSavedJobs();
+    showToast(`"${t}" removed from saved jobs.`,'info');
+  }
+}
+
+function updateStats(){
+  document.getElementById('stat-applied').textContent=applications.length;
+  document.getElementById('stat-saved').textContent=savedJobs.length;
+  document.getElementById('stat-interviews').textContent=applications.filter(a=>a.status==='Interview').length;
+  document.getElementById('stat-applied-change').textContent=`↑ ${applications.length} total applied`;
+  document.getElementById('saved-badge').textContent=savedJobs.length;
+  document.getElementById('app-badge').textContent=applications.length;
+}
+
+// ========== MESSAGES ==========
+function openMsg(el, name, email, subject){
+  document.querySelectorAll('.msg-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('msg-from').textContent=name;
+  document.getElementById('msg-subject').textContent=subject;
+  document.getElementById('msg-avatar').textContent=name[0];
+  const colors=['#4285F4','#E31937','#0866FF','#059669','#6454F0'];
+  document.getElementById('msg-avatar').style.background=colors[Math.floor(Math.random()*colors.length)];
+}
+
+function sendMessage(){
+  const input=document.getElementById('msg-input');
+  const text=input.value.trim();
+  if(!text)return;
+  const area=document.getElementById('msg-chat-area');
+  const bubble=document.createElement('div');
+  bubble.className='msg-bubble sent';
+  bubble.innerHTML=`<div class="msg-bubble-text">${text}</div><div class="msg-bubble-time">Just now</div>`;
+  area.appendChild(bubble);
+  area.scrollTop=area.scrollHeight;
+  input.value='';
+  // Auto-reply after delay
+  setTimeout(()=>{
+    const replies=["Thanks for reaching out! We'll get back to you soon.","Got your message! Let me check with the team.","Noted! We appreciate your interest.","Thank you! We'll follow up within 24 hours."];
+    const r=document.createElement('div');
+    r.className='msg-bubble recv';
+    r.innerHTML=`<div class="msg-bubble-text">${replies[Math.floor(Math.random()*replies.length)]}</div><div class="msg-bubble-time">Just now</div>`;
+    area.appendChild(r);
+    area.scrollTop=area.scrollHeight;
+  },1200);
+}
+
+// ========== SETTINGS ==========
+function switchSettings(panel, el){
+  document.querySelectorAll('.settings-nav-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.settings-panel-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('settings-'+panel).classList.add('active');
+}
+
+function saveProfile(){
+  if(!currentUser)return;
+  const fname=document.getElementById('s-fname').value.trim();
+  const lname=document.getElementById('s-lname').value.trim();
+  if(fname){
+    currentUser.fname=fname;
+    currentUser.lname=lname;
+    const initials=(fname[0]||'G')+(lname?lname[0]:'');
+    document.getElementById('sidebar-avatar').textContent=initials;
+    document.getElementById('topbar-avatar').textContent=initials;
+    document.getElementById('settings-avatar').textContent=initials;
+    document.getElementById('sidebar-name').textContent=(fname+' '+lname).trim();
+    document.getElementById('topbar-name').textContent=fname;
+    document.getElementById('welcome-name').textContent=fname;
+  }
+  showToast('Profile saved successfully!','success');
+}
+
+function changePassword(){
+  const np=document.getElementById('new-pass').value;
+  const cp=document.getElementById('conf-pass').value;
+  if(!np||!cp){showToast('Please fill in both password fields.','error');return;}
+  if(np.length<6){showToast('Password must be at least 6 characters.','error');return;}
+  if(np!==cp){showToast('Passwords do not match.','error');return;}
+  showToast('Password updated successfully!','success');
+  document.getElementById('new-pass').value='';
+  document.getElementById('conf-pass').value='';
+}
+
+// ========== ESCAPE KEY ==========
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.querySelectorAll('.jlm-overlay,.djm-overlay,.apply-overlay,.auth-overlay').forEach(m=>{m.classList.remove('open');document.body.style.overflow='';});
+  }
+});
+
+// Initialize dashboard job grid on load
+renderDashJobs(JOBS_DATA);
+</script>
+</body>
+</html>

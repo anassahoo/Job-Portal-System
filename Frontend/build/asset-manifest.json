@@ -1,0 +1,34 @@
+{
+  "files": {
+    "main.css": "/static/css/main.f36ee794.css",
+    "main.js": "/static/js/main.671353df.js",
+    "static/media/management.gif": "/static/media/management.df9d06462f238f94fdb8.gif",
+    "static/media/full-stack-developer.jpg": "/static/media/full-stack-developer.f6a26b0a951f02f65161.jpg",
+    "static/media/ui-ux-designer.jpg": "/static/media/ui-ux-designer.874b92e3c910d03ec3ac.jpg",
+    "static/media/jobbox-icon.jpg": "/static/media/jobbox-icon.32cdcf62fc1f13bf7596.jpg",
+    "static/media/communication-2.jpg": "/static/media/communication-2.ac3fe76dcf8001ff00ea.jpg",
+    "static/media/market-research.jpg": "/static/media/market-research.acacac7901499137dce6.jpg",
+    "static/media/human-resource.webp": "/static/media/human-resource.7f1fbd98907be4dd3241.webp",
+    "static/media/marketing-sales.jpg": "/static/media/marketing-sales.8d5f9c78f8bb37652328.jpg",
+    "static/media/system-engineer.jpg": "/static/media/system-engineer.26d9e4ebf2171aa70b71.jpg",
+    "static/media/retail-product.jpg": "/static/media/retail-product.352e93bfac3d4ed06b50.jpg",
+    "static/media/welcome-back.webp": "/static/media/welcome-back.767d2394a074032098b4.webp",
+    "static/media/engineering.jpg": "/static/media/engineering.59e694afea4e365de9d1.jpg",
+    "static/media/content-strategist.avif": "/static/media/content-strategist.eb78b1c1c7145bf41f47.avif",
+    "static/media/communication-1.webp": "/static/media/communication-1.b092bc4cd0a761a6314f.webp",
+    "static/media/finance-analyst.jpg": "/static/media/finance-analyst.e2abc4579c969acfd8e2.jpg",
+    "static/media/react-native.png": "/static/media/react-native.e5fc3a9aa8b9686924c2.png",
+    "static/media/lead-quality-control.webp": "/static/media/lead-quality-control.4f64f87055ded42e9df7.webp",
+    "static/media/finance.webp": "/static/media/finance.217121c04fc902a2528f.webp",
+    "static/media/creative-writing.avif": "/static/media/creative-writing.c0f5100b39df47b76cbb.avif",
+    "static/media/hr-business-partner.webp": "/static/media/hr-business-partner.864e73ed88c7bc84bb0d.webp",
+    "static/media/software.webp": "/static/media/software.1f7d4c5ecf81b135d23c.webp",
+    "index.html": "/index.html",
+    "main.f36ee794.css.map": "/static/css/main.f36ee794.css.map",
+    "main.671353df.js.map": "/static/js/main.671353df.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f36ee794.css",
+    "static/js/main.671353df.js"
+  ]
+}
