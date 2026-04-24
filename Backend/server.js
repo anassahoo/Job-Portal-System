@@ -17,6 +17,8 @@ app.use("/api/users", require("./routes/users.routes"));
 app.use("/api/skills", require("./routes/skill.routes"));
 app.use("/api/jobs", require("./routes/job.routes"));
 app.use("/api/companies", require("./routes/company.routes"));
+app.use("/api/resume", require("./routes/resume.routes"));
+app.use("/api/applications", require("./routes/application.route"));
 
 app.listen(5000, () => {
   console.log("Server running on port 5000");
