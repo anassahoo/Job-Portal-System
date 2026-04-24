@@ -45,27 +45,29 @@ exports.updateProfile = (req, res) => {
 
   const { first_name, last_name, phone, professional_title, location, bio } = req.body;
 
+  // 🔍 Check if profile exists
   db.query(
     "SELECT * FROM user_profiles WHERE user_id = ?",
     [userId],
     (err, result) => {
       if (err) return res.status(500).json({ error: "Database error" });
 
-      // 🆕 CREATE PROFILE
+      // =========================
+      // 🆕 FIRST TIME → ALL FIELDS REQUIRED
+      // =========================
       if (result.length === 0) {
+
+        if (!first_name || !last_name || !phone || !professional_title || !location || !bio) {
+          return res.status(400).json({
+            error: "All profile fields are required for first-time setup"
+          });
+        }
+
         db.query(
           `INSERT INTO user_profiles 
           (user_id, first_name, last_name, phone, professional_title, location, bio)
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            userId,
-            first_name || null,
-            last_name || null,
-            phone || null,
-            professional_title || null,
-            location || null,
-            bio || null
-          ],
+          [userId, first_name, last_name, phone, professional_title, location, bio],
           (err2) => {
             if (err2) return res.status(500).json({ error: "Profile creation failed" });
 
@@ -74,8 +76,11 @@ exports.updateProfile = (req, res) => {
         );
       }
 
-      // 🔄 UPDATE PROFILE (SMART)
+      // =========================
+      // 🔄 UPDATE (PARTIAL ALLOWED)
+      // =========================
       else {
+
         const fields = [];
         const values = [];
 
@@ -130,8 +135,6 @@ exports.updateProfile = (req, res) => {
     }
   );
 };
-
-
 
 // =====================
 // UPLOAD PROFILE IMAGE
