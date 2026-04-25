@@ -6,6 +6,7 @@ const db = require("../config/db");
 // CREATE JOB (NO IMAGE)
 // =====================
 exports.createJob = (req, res) => {
+  const userId = req.user.id;
   const body = req.body || {};
   const { title, description, company_id } = body;
 
@@ -16,20 +17,35 @@ exports.createJob = (req, res) => {
   }
 
   db.query(
-    `INSERT INTO jobs 
-     (title, description, company_id) 
-     VALUES (?, ?, ?)`,
-    [title, description, company_id],
-    (err, result) => {
-      if (err) {
-        console.log("DB ERROR:", err);
-        return res.status(500).json({ error: "Job creation failed" });
+    "SELECT id FROM recruiters WHERE user_id = ? AND company_id = ? LIMIT 1",
+    [userId, company_id],
+    (linkErr, linkRows) => {
+      if (linkErr) {
+        console.log("DB ERROR:", linkErr);
+        return res.status(500).json({ error: "Database error" });
       }
 
-      return res.json({
-        message: "Job created successfully",
-        job_id: result.insertId
-      });
+      if (linkRows.length === 0) {
+        return res.status(403).json({ error: "You can only post jobs for your own company" });
+      }
+
+      db.query(
+        `INSERT INTO jobs 
+         (title, description, company_id) 
+         VALUES (?, ?, ?)`,
+        [title, description, company_id],
+        (err, result) => {
+          if (err) {
+            console.log("DB ERROR:", err);
+            return res.status(500).json({ error: "Job creation failed" });
+          }
+
+          return res.json({
+            message: "Job created successfully",
+            job_id: result.insertId
+          });
+        }
+      );
     }
   );
 };
@@ -38,6 +54,7 @@ exports.createJob = (req, res) => {
 // ADD SKILL TO JOB
 // =====================
 exports.addJobSkill = (req, res) => {
+  const userId = req.user.id;
   const body = req.body || {};
   const { job_id, skill_id } = body;
 
@@ -48,15 +65,34 @@ exports.addJobSkill = (req, res) => {
   }
 
   db.query(
-    "INSERT INTO job_skills (job_id, skill_id) VALUES (?, ?)",
-    [job_id, skill_id],
-    (err) => {
-      if (err) {
-        console.log("DB ERROR:", err);
-        return res.status(500).json({ error: "Failed to add skill" });
+    `SELECT j.id
+     FROM jobs j
+     JOIN recruiters r ON j.company_id = r.company_id
+     WHERE j.id = ? AND r.user_id = ?
+     LIMIT 1`,
+    [job_id, userId],
+    (accessErr, accessRows) => {
+      if (accessErr) {
+        console.log("DB ERROR:", accessErr);
+        return res.status(500).json({ error: "Database error" });
       }
 
-      return res.json({ message: "Skill added to job" });
+      if (accessRows.length === 0) {
+        return res.status(403).json({ error: "You can only add skills to your own jobs" });
+      }
+
+      db.query(
+        "INSERT INTO job_skills (job_id, skill_id) VALUES (?, ?)",
+        [job_id, skill_id],
+        (err) => {
+          if (err) {
+            console.log("DB ERROR:", err);
+            return res.status(500).json({ error: "Failed to add skill" });
+          }
+
+          return res.json({ message: "Skill added to job" });
+        }
+      );
     }
   );
 };
@@ -96,6 +132,32 @@ exports.getJobDetails = (req, res) => {
      LEFT JOIN skills s ON js.skill_id = s.id
      WHERE j.id = ?`,
     [jobId],
+    (err, result) => {
+      if (err) {
+        console.log("DB ERROR:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      return res.json(result);
+    }
+  );
+};
+
+// =====================
+// GET MY JOBS (RECRUITER)
+// =====================
+exports.getMyJobs = (req, res) => {
+  const userId = req.user.id;
+
+  db.query(
+    `SELECT j.*, c.name AS company_name,
+      (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicants_count
+     FROM jobs j
+     JOIN recruiters r ON j.company_id = r.company_id
+     LEFT JOIN companies c ON j.company_id = c.id
+     WHERE r.user_id = ?
+     ORDER BY j.id DESC`,
+    [userId],
     (err, result) => {
       if (err) {
         console.log("DB ERROR:", err);

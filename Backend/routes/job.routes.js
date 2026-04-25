@@ -21,6 +21,11 @@ router.post("/add-skill", authMiddleware, jobController.addJobSkill);
 router.get("/", authMiddleware, jobController.getAllJobs);
 
 // =====================
+// GET MY JOBS (RECRUITER)
+// =====================
+router.get("/my", authMiddleware, jobController.getMyJobs);
+
+// =====================
 // GET JOB DETAILS
 // =====================
 router.get("/:id", authMiddleware, jobController.getJobDetails);

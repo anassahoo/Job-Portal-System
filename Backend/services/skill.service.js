@@ -73,3 +73,13 @@ exports.createSkill = (req, res) => {
     }
   );
 };
+
+exports.getAllSkills = (req, res) => {
+  db.query(
+    "SELECT id, skill_name FROM skills ORDER BY id DESC",
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      return res.json(result);
+    }
+  );
+};

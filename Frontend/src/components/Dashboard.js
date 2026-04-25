@@ -6,7 +6,16 @@ import jobBoxIcon from '../assets/brand/jobbox-icon.jpg';
 import welcomeBackImage from '../assets/dashboard/welcome-back.webp';
 import { updateStoredSessionUser } from '../API/authApi';
 import { getMyProfile, getProfileImageUrl, updateMyAccount, updateMyProfile, uploadMyProfileImage } from '../API/userAPI';
-import { createCompany, createJob, getCompanies, getJobs, getRecruiterApplications } from '../API/recruiterApi';
+import {
+  addJobSkill,
+  createCompany,
+  createJob,
+  createSkill,
+  getAllSkills,
+  getMyCompany,
+  getMyJobs,
+  getRecruiterApplications,
+} from '../API/recruiterApi';
 
 const DASHBOARD_ICONS = {
   home: (
@@ -208,11 +217,14 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     applicants: 'Applicants',
   };
   const [companyForm, setCompanyForm] = useState({ name: '', description: '' });
-  const [jobForm, setJobForm] = useState({ title: '', description: '', jobType: 'Full-Time' });
+  const [companyLogoFile, setCompanyLogoFile] = useState(null);
+  const [companyLogoPreview, setCompanyLogoPreview] = useState('');
+  const [jobForm, setJobForm] = useState({ title: '', description: '', jobType: 'Full-Time', requiredSkills: '' });
   const [myJobs, setMyJobs] = useState([]);
   const [companyData, setCompanyData] = useState(null);
   const [applicantList, setApplicantList] = useState([]);
   const [companyId, setCompanyId] = useState(null);
+  const [availableSkills, setAvailableSkills] = useState([]);
 
   useEffect(() => {
     function closeAccountMenu(event) {
@@ -285,33 +297,32 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
       if (!isRecruiterRole) return;
 
       try {
-        const [companies, jobs, applicants] = await Promise.all([
-          getCompanies(),
-          getJobs(),
+        const [myCompany, recruiterJobs, applicants, skills] = await Promise.all([
+          getMyCompany().catch(() => null),
+          getMyJobs().catch(() => []),
           getRecruiterApplications(),
+          getAllSkills().catch(() => []),
         ]);
 
-        if (Array.isArray(companies) && companies.length > 0) {
-          const firstCompany = companies[0];
+        if (myCompany) {
           setCompanyData({
-            name: firstCompany.name || '',
-            description: firstCompany.description || '',
+            name: myCompany.name || '',
+            description: myCompany.description || '',
+            logo: myCompany.logo || '',
           });
-          setCompanyId(firstCompany.id || null);
+          setCompanyId(myCompany.id || null);
         } else {
           setCompanyData(null);
           setCompanyId(null);
         }
 
-        const mappedJobs = Array.isArray(jobs)
-          ? jobs
-              .filter(j => !companyId || j.company_id === companyId)
-              .map(j => ({
+        const mappedJobs = Array.isArray(recruiterJobs)
+          ? recruiterJobs.map(j => ({
                 id: j.id,
                 title: j.title,
                 company: j.company_name || companyData?.name || 'Company',
                 posted: `Job #${j.id}`,
-                applicants: Array.isArray(applicants) ? applicants.filter(a => a.job_id === j.id).length : 0,
+                applicants: Number(j.applicants_count || 0),
                 status: 'Active',
               }))
           : [];
@@ -328,13 +339,15 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
             }))
           : [];
         setApplicantList(mappedApplicants);
+
+        setAvailableSkills(Array.isArray(skills) ? skills : []);
       } catch (error) {
         toast(error.message || 'Failed to load recruiter dashboard data.', 'error');
       }
     }
 
     loadRecruiterData();
-  }, [isRecruiterRole, companyId]);
+  }, [isRecruiterRole]);
 
   async function handleCreateCompany() {
     if (!companyForm.name.trim() || !companyForm.description.trim()) {
@@ -346,11 +359,18 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
       const result = await createCompany({
         name: companyForm.name.trim(),
         description: companyForm.description.trim(),
+        logo: companyLogoFile,
       });
 
-      setCompanyData({ name: companyForm.name.trim(), description: companyForm.description.trim() });
+      setCompanyData({
+        name: companyForm.name.trim(),
+        description: companyForm.description.trim(),
+        logo: result.logo || '',
+      });
       setCompanyId(result.company_id || null);
       setCompanyForm({ name: '', description: '' });
+      setCompanyLogoFile(null);
+      setCompanyLogoPreview('');
       toast('Company profile created!', 'success');
     } catch (error) {
       toast(error.message || 'Failed to create company profile', 'error');
@@ -375,6 +395,36 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         company_id: companyId,
       });
 
+      const skillTokens = String(jobForm.requiredSkills || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      if (skillTokens.length > 0) {
+        const normalizedMap = new Map(
+          availableSkills.map(s => [String(s.skill_name || '').trim().toLowerCase(), s.id])
+        );
+
+        const skillIds = [];
+        for (const skillName of skillTokens) {
+          const key = skillName.toLowerCase();
+          if (normalizedMap.has(key)) {
+            skillIds.push(normalizedMap.get(key));
+            continue;
+          }
+
+          const created = await createSkill({ skill_name: skillName });
+          if (created?.skill_id) {
+            skillIds.push(created.skill_id);
+            normalizedMap.set(key, created.skill_id);
+          }
+        }
+
+        if (skillIds.length > 0) {
+          await Promise.all(skillIds.map(skillId => addJobSkill({ job_id: result.job_id, skill_id: skillId })));
+        }
+      }
+
       setMyJobs(prev => [
         {
           id: result.job_id || Date.now(),
@@ -386,7 +436,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         },
         ...prev,
       ]);
-      setJobForm({ title: '', description: '', jobType: 'Full-Time' });
+      setJobForm({ title: '', description: '', jobType: 'Full-Time', requiredSkills: '' });
       setSection('myJobs');
       toast('Job posted successfully!', 'success');
     } catch (error) {
@@ -932,6 +982,16 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                     </div>
                   </div>
                   <div style={{ marginBottom: 24 }}>
+                    {companyData.logo ? (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Logo</label>
+                        <img
+                          src={getProfileImageUrl(companyData.logo)}
+                          alt="Company logo"
+                          style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 10, border: '1px solid #E4E5E8' }}
+                        />
+                      </div>
+                    ) : null}
                     <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Description</label>
                     <div style={{ padding: '12px 14px', background: '#F7F8FC', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, color: '#18191C', minHeight: 80 }}>{companyData.description}</div>
                   </div>
@@ -945,6 +1005,48 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                       <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Name *</label>
                       <input value={companyForm.name} onChange={e => setCompanyForm(f => ({ ...f, name: e.target.value }))} placeholder="Your company name" style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }} />
                     </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Logo</label>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      onChange={e => {
+                        const file = e.target.files?.[0] || null;
+                        if (!file) {
+                          setCompanyLogoFile(null);
+                          setCompanyLogoPreview('');
+                          return;
+                        }
+
+                        if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+                          toast('Only JPG and PNG images are allowed.', 'error');
+                          e.target.value = '';
+                          setCompanyLogoFile(null);
+                          setCompanyLogoPreview('');
+                          return;
+                        }
+
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast('Logo size must be 5MB or less.', 'error');
+                          e.target.value = '';
+                          setCompanyLogoFile(null);
+                          setCompanyLogoPreview('');
+                          return;
+                        }
+
+                        setCompanyLogoFile(file);
+                        setCompanyLogoPreview(URL.createObjectURL(file));
+                      }}
+                      style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }}
+                    />
+                    {companyLogoPreview ? (
+                      <img
+                        src={companyLogoPreview}
+                        alt="Logo preview"
+                        style={{ marginTop: 10, width: 80, height: 80, objectFit: 'cover', borderRadius: 10, border: '1px solid #E4E5E8' }}
+                      />
+                    ) : null}
                   </div>
                   <div style={{ marginBottom: 20 }}>
                     <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Description *</label>
@@ -984,9 +1086,18 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                     <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Job Description *</label>
                     <textarea value={jobForm.description} onChange={e => setJobForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the job role, responsibilities, and requirements..." style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none', minHeight: 140, resize: 'vertical' }} />
                   </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Required Skills (comma separated)</label>
+                    <input
+                      value={jobForm.requiredSkills}
+                      onChange={e => setJobForm(f => ({ ...f, requiredSkills: e.target.value }))}
+                      placeholder="e.g. React, Node.js, SQL"
+                      style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }}
+                    />
+                  </div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button onClick={handlePostJob} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Post Job</button>
-                    <button onClick={() => { setJobForm({ title: '', description: '', jobType: 'Full-Time' }); }} style={{ padding: '11px 20px', background: 'transparent', color: '#0A65CC', border: '1.5px solid #0A65CC', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Cancel</button>
+                    <button onClick={() => { setJobForm({ title: '', description: '', jobType: 'Full-Time', requiredSkills: '' }); }} style={{ padding: '11px 20px', background: 'transparent', color: '#0A65CC', border: '1.5px solid #0A65CC', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Cancel</button>
                   </div>
                 </div>
               )}

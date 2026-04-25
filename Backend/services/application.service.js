@@ -130,7 +130,10 @@ exports.getRecruiterApplications = (req, res) => {
     LEFT JOIN auth_users u ON a.user_id = u.id
     LEFT JOIN jobs j ON a.job_id = j.id
     LEFT JOIN companies c ON j.company_id = c.id
+    JOIN recruiters r ON j.company_id = r.company_id
+    WHERE r.user_id = ?
     ORDER BY a.id DESC`,
+    [req.user.id],
     (err, result) => {
       if (err) return res.status(500).json({ error: "DB error" });
       return res.json(result);

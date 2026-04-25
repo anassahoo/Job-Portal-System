@@ -11,13 +11,19 @@ async function parseResponse(response, fallbackMessage) {
 }
 
 export async function createCompany(payload) {
+  const formData = new FormData();
+  formData.append('name', payload.name || '');
+  formData.append('description', payload.description || '');
+  if (payload.logo) {
+    formData.append('logo', payload.logo);
+  }
+
   const response = await fetch(`${API_BASE_URL}/companies/create`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       ...getAuthHeader(),
     },
-    body: JSON.stringify(payload),
+    body: formData,
   });
 
   return parseResponse(response, 'Failed to create company');
@@ -33,6 +39,18 @@ export async function getCompanies() {
   });
 
   return parseResponse(response, 'Failed to load companies');
+}
+
+export async function getMyCompany() {
+  const response = await fetch(`${API_BASE_URL}/companies/my`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  return parseResponse(response, 'Failed to load recruiter company');
 }
 
 export async function createJob(payload) {
@@ -58,6 +76,56 @@ export async function getJobs() {
   });
 
   return parseResponse(response, 'Failed to load jobs');
+}
+
+export async function getMyJobs() {
+  const response = await fetch(`${API_BASE_URL}/jobs/my`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  return parseResponse(response, 'Failed to load recruiter jobs');
+}
+
+export async function addJobSkill(payload) {
+  const response = await fetch(`${API_BASE_URL}/jobs/add-skill`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response, 'Failed to add required skill to job');
+}
+
+export async function getAllSkills() {
+  const response = await fetch(`${API_BASE_URL}/skills/all`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  return parseResponse(response, 'Failed to load skills');
+}
+
+export async function createSkill(payload) {
+  const response = await fetch(`${API_BASE_URL}/skills/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response, 'Failed to create skill');
 }
 
 export async function getRecruiterApplications() {

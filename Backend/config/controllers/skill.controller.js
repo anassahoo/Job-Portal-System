@@ -15,3 +15,7 @@ exports.removeSkill = (req, res) => {
 exports.createSkill = (req, res) => {
   skillService.createSkill(req, res);
 };
+
+exports.getAllSkills = (req, res) => {
+  skillService.getAllSkills(req, res);
+};

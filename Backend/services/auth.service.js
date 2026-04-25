@@ -48,10 +48,44 @@ exports.signup = async (req, res) => {
         (err2, result2) => {
           if (err2) return res.status(500).json({ error: "Signup failed" });
 
-          return res.status(201).json({
-            message: "Signup successful",
-            user_id: result2.insertId
-          });
+          const userId = result2.insertId;
+
+          if (normalizedRole !== "recruiter") {
+            return res.status(201).json({
+              message: "Signup successful",
+              user_id: userId
+            });
+          }
+
+          db.query(
+            "SELECT id FROM recruiters WHERE user_id = ? LIMIT 1",
+            [userId],
+            (linkErr, rows) => {
+              if (linkErr) return res.status(500).json({ error: "Recruiter setup failed" });
+
+              if (rows.length > 0) {
+                return res.status(201).json({
+                  message: "Signup successful",
+                  user_id: userId
+                });
+              }
+
+              db.query(
+                "INSERT INTO recruiters (user_id, company_id) VALUES (?, NULL)",
+                [userId],
+                (insertRecruiterErr) => {
+                  if (insertRecruiterErr) {
+                    console.log("Recruiter setup skipped:", insertRecruiterErr.message);
+                  }
+
+                  return res.status(201).json({
+                    message: "Signup successful",
+                    user_id: userId
+                  });
+                }
+              );
+            }
+          );
         }
       );
     });
