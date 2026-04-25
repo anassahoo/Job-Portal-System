@@ -19,3 +19,7 @@ exports.getJobDetails = (req, res) => {
 exports.getMyJobs = (req, res) => {
   jobService.getMyJobs(req, res);
 };
+
+exports.updateJob = (req, res) => {
+  jobService.updateJob(req, res);
+};

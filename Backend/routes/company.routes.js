@@ -14,6 +14,9 @@ router.get("/", authMiddleware, companyController.getCompanies);
 // GET MY COMPANY
 router.get("/my", authMiddleware, companyController.getMyCompany);
 
+// UPDATE MY COMPANY
+router.put("/my", authMiddleware, upload.single("logo"), companyController.updateMyCompany);
+
 // GET SINGLE COMPANY
 router.get("/:id", authMiddleware, companyController.getCompanyById);
 

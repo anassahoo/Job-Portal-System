@@ -15,6 +15,8 @@ import {
   getMyCompany,
   getMyJobs,
   getRecruiterApplications,
+  updateJob,
+  updateMyCompany,
 } from '../API/recruiterApi';
 
 const DASHBOARD_ICONS = {
@@ -225,6 +227,8 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
   const [applicantList, setApplicantList] = useState([]);
   const [companyId, setCompanyId] = useState(null);
   const [availableSkills, setAvailableSkills] = useState([]);
+  const [isEditingCompany, setIsEditingCompany] = useState(false);
+  const [editingJobId, setEditingJobId] = useState(null);
 
   useEffect(() => {
     function closeAccountMenu(event) {
@@ -320,6 +324,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           ? recruiterJobs.map(j => ({
                 id: j.id,
                 title: j.title,
+                description: j.description || '',
                 company: j.company_name || companyData?.name || 'Company',
                 posted: `Job #${j.id}`,
                 applicants: Number(j.applicants_count || 0),
@@ -349,32 +354,62 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     loadRecruiterData();
   }, [isRecruiterRole]);
 
-  async function handleCreateCompany() {
+  async function handleSaveCompany() {
     if (!companyForm.name.trim() || !companyForm.description.trim()) {
       toast('Please fill in all fields', 'error');
       return;
     }
 
     try {
-      const result = await createCompany({
-        name: companyForm.name.trim(),
-        description: companyForm.description.trim(),
-        logo: companyLogoFile,
-      });
+      if (isEditingCompany && companyData) {
+        const result = await updateMyCompany({
+          name: companyForm.name.trim(),
+          description: companyForm.description.trim(),
+          logo: companyLogoFile,
+        });
 
-      setCompanyData({
-        name: companyForm.name.trim(),
-        description: companyForm.description.trim(),
-        logo: result.logo || '',
-      });
-      setCompanyId(result.company_id || null);
+        const nextCompany = result?.company || {
+          ...companyData,
+          name: companyForm.name.trim(),
+          description: companyForm.description.trim(),
+        };
+        setCompanyData(nextCompany);
+        setCompanyId(nextCompany?.id || companyId);
+        toast('Company profile updated!', 'success');
+      } else {
+        const result = await createCompany({
+          name: companyForm.name.trim(),
+          description: companyForm.description.trim(),
+          logo: companyLogoFile,
+        });
+
+        setCompanyData({
+          name: companyForm.name.trim(),
+          description: companyForm.description.trim(),
+          logo: result.logo || '',
+        });
+        setCompanyId(result.company_id || null);
+        toast('Company profile created!', 'success');
+      }
+
       setCompanyForm({ name: '', description: '' });
       setCompanyLogoFile(null);
       setCompanyLogoPreview('');
-      toast('Company profile created!', 'success');
+      setIsEditingCompany(false);
     } catch (error) {
-      toast(error.message || 'Failed to create company profile', 'error');
+      toast(error.message || 'Failed to save company profile', 'error');
     }
+  }
+
+  function handleEditJobClick(job) {
+    setEditingJobId(job.id);
+    setJobForm({
+      title: job.title || '',
+      description: job.description || '',
+      jobType: 'Full-Time',
+      requiredSkills: '',
+    });
+    setSection('postJob');
   }
 
   async function handlePostJob() {
@@ -389,11 +424,19 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     }
 
     try {
-      const result = await createJob({
-        title: jobForm.title.trim(),
-        description: jobForm.description.trim(),
-        company_id: companyId,
-      });
+      let result = null;
+      if (editingJobId) {
+        await updateJob(editingJobId, {
+          title: jobForm.title.trim(),
+          description: jobForm.description.trim(),
+        });
+      } else {
+        result = await createJob({
+          title: jobForm.title.trim(),
+          description: jobForm.description.trim(),
+          company_id: companyId,
+        });
+      }
 
       const skillTokens = String(jobForm.requiredSkills || '')
         .split(',')
@@ -420,27 +463,39 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           }
         }
 
-        if (skillIds.length > 0) {
-          await Promise.all(skillIds.map(skillId => addJobSkill({ job_id: result.job_id, skill_id: skillId })));
+        if (skillIds.length > 0 && (result?.job_id || editingJobId)) {
+          const targetJobId = result?.job_id || editingJobId;
+          await Promise.all(skillIds.map(skillId => addJobSkill({ job_id: targetJobId, skill_id: skillId })));
         }
       }
 
-      setMyJobs(prev => [
-        {
-          id: result.job_id || Date.now(),
-          title: jobForm.title.trim(),
-          company: companyData?.name || 'Company',
-          posted: 'Just now',
-          applicants: 0,
-          status: 'Active',
-        },
-        ...prev,
-      ]);
+      if (editingJobId) {
+        setMyJobs(prev => prev.map(j => (
+          j.id === editingJobId
+            ? { ...j, title: jobForm.title.trim(), description: jobForm.description.trim() }
+            : j
+        )));
+      } else {
+        setMyJobs(prev => [
+          {
+            id: result?.job_id || Date.now(),
+            title: jobForm.title.trim(),
+            description: jobForm.description.trim(),
+            company: companyData?.name || 'Company',
+            posted: 'Just now',
+            applicants: 0,
+            status: 'Active',
+          },
+          ...prev,
+        ]);
+      }
+
       setJobForm({ title: '', description: '', jobType: 'Full-Time', requiredSkills: '' });
+      setEditingJobId(null);
       setSection('myJobs');
-      toast('Job posted successfully!', 'success');
+      toast(editingJobId ? 'Job updated successfully!' : 'Job posted successfully!', 'success');
     } catch (error) {
-      toast(error.message || 'Failed to post job', 'error');
+      toast(error.message || (editingJobId ? 'Failed to update job' : 'Failed to post job'), 'error');
     }
   }
 
@@ -969,7 +1024,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           {isRecruiterRole && section === 'company' && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', padding: 24 }}>
               <h3 style={{ fontFamily: 'Jost', fontSize: 20, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Company Profile</h3>
-              {companyData ? (
+              {companyData && !isEditingCompany ? (
                 <div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
                     <div>
@@ -995,7 +1050,17 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                     <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Description</label>
                     <div style={{ padding: '12px 14px', background: '#F7F8FC', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, color: '#18191C', minHeight: 80 }}>{companyData.description}</div>
                   </div>
-                  <button onClick={() => { setCompanyData(null); setCompanyForm({ name: companyData.name, description: companyData.description }); }} style={{ padding: '10px 18px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Edit Company</button>
+                  <button
+                    onClick={() => {
+                      setIsEditingCompany(true);
+                      setCompanyForm({ name: companyData.name || '', description: companyData.description || '' });
+                      setCompanyLogoFile(null);
+                      setCompanyLogoPreview(companyData.logo ? getProfileImageUrl(companyData.logo) : '');
+                    }}
+                    style={{ padding: '10px 18px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}
+                  >
+                    Edit Company
+                  </button>
                 </div>
               ) : (
                 <div>
@@ -1052,7 +1117,24 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                     <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Description *</label>
                     <textarea value={companyForm.description} onChange={e => setCompanyForm(f => ({ ...f, description: e.target.value }))} placeholder="Tell us about your company..." style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none', minHeight: 120, resize: 'vertical' }} />
                   </div>
-                  <button onClick={handleCreateCompany} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Create Company Profile</button>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={handleSaveCompany} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>
+                      {isEditingCompany ? 'Update Company Profile' : 'Create Company Profile'}
+                    </button>
+                    {isEditingCompany ? (
+                      <button
+                        onClick={() => {
+                          setIsEditingCompany(false);
+                          setCompanyForm({ name: '', description: '' });
+                          setCompanyLogoFile(null);
+                          setCompanyLogoPreview('');
+                        }}
+                        style={{ padding: '11px 20px', background: 'transparent', color: '#0A65CC', border: '1.5px solid #0A65CC', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>
@@ -1061,7 +1143,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           {/* RECRUITER - POST JOB */}
           {isRecruiterRole && section === 'postJob' && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', padding: 24 }}>
-              <h3 style={{ fontFamily: 'Jost', fontSize: 20, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Post a New Job</h3>
+              <h3 style={{ fontFamily: 'Jost', fontSize: 20, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>{editingJobId ? 'Edit Job' : 'Post a New Job'}</h3>
               {!companyData ? (
                 <div style={{ padding: 20, background: '#FEF3C7', borderRadius: 8, color: '#92400E', fontFamily: 'Mulish', fontSize: 14 }}>⚠️ Please create a company profile first before posting jobs. <button onClick={() => setSection('company')} style={{ marginTop: 10, padding: '8px 16px', background: '#F59E0B', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Go to Company Profile</button></div>
               ) : (
@@ -1096,8 +1178,18 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                     />
                   </div>
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={handlePostJob} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Post Job</button>
-                    <button onClick={() => { setJobForm({ title: '', description: '', jobType: 'Full-Time', requiredSkills: '' }); }} style={{ padding: '11px 20px', background: 'transparent', color: '#0A65CC', border: '1.5px solid #0A65CC', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Cancel</button>
+                    <button onClick={handlePostJob} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>
+                      {editingJobId ? 'Update Job' : 'Post Job'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setJobForm({ title: '', description: '', jobType: 'Full-Time', requiredSkills: '' });
+                        setEditingJobId(null);
+                      }}
+                      style={{ padding: '11px 20px', background: 'transparent', color: '#0A65CC', border: '1.5px solid #0A65CC', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
@@ -1123,7 +1215,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                         <td>{j.posted}</td>
                         <td><span style={{ fontWeight: 600, color: '#0A65CC' }}>{j.applicants}</span></td>
                         <td><span className={`app-status ${j.status?.toLowerCase()}`}>{j.status}</span></td>
-                        <td><button onClick={() => toast('Editing job...', 'info')} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>Edit</button></td>
+                        <td><button onClick={() => handleEditJobClick(j)} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>Edit</button></td>
                       </tr>
                     ))}
                   </tbody>

@@ -26,6 +26,11 @@ router.get("/", authMiddleware, jobController.getAllJobs);
 router.get("/my", authMiddleware, jobController.getMyJobs);
 
 // =====================
+// UPDATE JOB
+// =====================
+router.put("/:id", authMiddleware, jobController.updateJob);
+
+// =====================
 // GET JOB DETAILS
 // =====================
 router.get("/:id", authMiddleware, jobController.getJobDetails);

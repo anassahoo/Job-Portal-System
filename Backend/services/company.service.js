@@ -146,3 +146,84 @@ exports.getMyCompany = (req, res) => {
     }
   );
 };
+
+// =====================
+// UPDATE RECRUITER COMPANY
+// =====================
+exports.updateMyCompany = (req, res) => {
+  const userId = req.user.id;
+  const role = String(req.user.role || "").toLowerCase();
+  const { name, description } = req.body || {};
+  const logo = req.file ? req.file.filename : null;
+
+  if (!["recruiter", "recuteir"].includes(role)) {
+    return res.status(403).json({ error: "Only recruiters can update company profiles" });
+  }
+
+  db.query(
+    "SELECT company_id FROM recruiters WHERE user_id = ? LIMIT 1",
+    [userId],
+    (linkErr, linkRows) => {
+      if (linkErr) {
+        console.log("DB ERROR:", linkErr);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      if (linkRows.length === 0 || !linkRows[0].company_id) {
+        return res.status(404).json({ error: "No company linked to this recruiter" });
+      }
+
+      const companyId = linkRows[0].company_id;
+      const fields = [];
+      const values = [];
+
+      if (typeof name === "string" && name.trim()) {
+        fields.push("name = ?");
+        values.push(name.trim());
+      }
+
+      if (description !== undefined) {
+        fields.push("description = ?");
+        values.push(description ? String(description).trim() : null);
+      }
+
+      if (logo) {
+        fields.push("logo = ?");
+        values.push(logo);
+      }
+
+      if (fields.length === 0) {
+        return res.status(400).json({ error: "No company fields provided to update" });
+      }
+
+      values.push(companyId);
+
+      db.query(
+        `UPDATE companies SET ${fields.join(", ")} WHERE id = ?`,
+        values,
+        (updateErr) => {
+          if (updateErr) {
+            console.log("DB ERROR:", updateErr);
+            return res.status(500).json({ error: "Company update failed" });
+          }
+
+          db.query(
+            "SELECT * FROM companies WHERE id = ? LIMIT 1",
+            [companyId],
+            (getErr, rows) => {
+              if (getErr) {
+                console.log("DB ERROR:", getErr);
+                return res.status(500).json({ error: "Database error" });
+              }
+
+              return res.json({
+                message: "Company updated",
+                company: rows[0] || null,
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+};

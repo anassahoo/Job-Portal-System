@@ -15,3 +15,7 @@ exports.getCompanyById = (req, res) => {
 exports.getMyCompany = (req, res) => {
   companyService.getMyCompany(req, res);
 };
+
+exports.updateMyCompany = (req, res) => {
+  companyService.updateMyCompany(req, res);
+};

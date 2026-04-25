@@ -168,3 +168,63 @@ exports.getMyJobs = (req, res) => {
     }
   );
 };
+
+// =====================
+// UPDATE JOB (RECRUITER)
+// =====================
+exports.updateJob = (req, res) => {
+  const userId = req.user.id;
+  const jobId = req.params.id;
+  const { title, description } = req.body || {};
+
+  const fields = [];
+  const values = [];
+
+  if (typeof title === "string" && title.trim()) {
+    fields.push("title = ?");
+    values.push(title.trim());
+  }
+
+  if (typeof description === "string" && description.trim()) {
+    fields.push("description = ?");
+    values.push(description.trim());
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: "No job fields provided to update" });
+  }
+
+  db.query(
+    `SELECT j.id
+     FROM jobs j
+     JOIN recruiters r ON j.company_id = r.company_id
+     WHERE j.id = ? AND r.user_id = ?
+     LIMIT 1`,
+    [jobId, userId],
+    (accessErr, accessRows) => {
+      if (accessErr) {
+        console.log("DB ERROR:", accessErr);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      if (accessRows.length === 0) {
+        return res.status(403).json({ error: "You can only edit your own jobs" });
+      }
+
+      values.push(jobId);
+
+      db.query(
+        `UPDATE jobs SET ${fields.join(", ")} WHERE id = ?`,
+        values,
+        (updateErr) => {
+          if (updateErr) {
+            console.log("DB ERROR:", updateErr);
+            return res.status(500).json({ error: "Job update failed" });
+          }
+
+          return res.json({ message: "Job updated successfully" });
+        }
+      );
+    }
+  );
+};

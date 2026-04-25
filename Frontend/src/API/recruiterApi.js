@@ -53,6 +53,23 @@ export async function getMyCompany() {
   return parseResponse(response, 'Failed to load recruiter company');
 }
 
+export async function updateMyCompany(payload) {
+  const formData = new FormData();
+  if (payload.name !== undefined) formData.append('name', payload.name || '');
+  if (payload.description !== undefined) formData.append('description', payload.description || '');
+  if (payload.logo) formData.append('logo', payload.logo);
+
+  const response = await fetch(`${API_BASE_URL}/companies/my`, {
+    method: 'PUT',
+    headers: {
+      ...getAuthHeader(),
+    },
+    body: formData,
+  });
+
+  return parseResponse(response, 'Failed to update company');
+}
+
 export async function createJob(payload) {
   const response = await fetch(`${API_BASE_URL}/jobs/create`, {
     method: 'POST',
@@ -64,6 +81,19 @@ export async function createJob(payload) {
   });
 
   return parseResponse(response, 'Failed to create job');
+}
+
+export async function updateJob(jobId, payload) {
+  const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response, 'Failed to update job');
 }
 
 export async function getJobs() {
