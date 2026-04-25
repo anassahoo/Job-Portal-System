@@ -4,6 +4,8 @@ import { toast } from './Toast';
 import ApplyModal from './ApplyModal';
 import jobBoxIcon from '../assets/brand/jobbox-icon.jpg';
 import welcomeBackImage from '../assets/dashboard/welcome-back.webp';
+import { updateStoredSessionUser } from '../API/authApi';
+import { getMyProfile, getProfileImageUrl, updateMyAccount, updateMyProfile, uploadMyProfileImage } from '../API/userAPI';
 
 const DASHBOARD_ICONS = {
   home: (
@@ -135,7 +137,20 @@ const SETTINGS_NAV_ITEMS = [
   { key: 'danger', icon: 'danger', label: 'Danger Zone' },
 ];
 
-export default function Dashboard({ user, onSignOut, onApply, savedJobs, applications, onSaveJob, onRemoveSaved }) {
+const COUNTRY_PHONE_CODES = [
+  { code: '+1', label: 'US/CA (+1)' },
+  { code: '+44', label: 'UK (+44)' },
+  { code: '+91', label: 'India (+91)' },
+  { code: '+92', label: 'Pakistan (+92)' },
+  { code: '+61', label: 'Australia (+61)' },
+  { code: '+971', label: 'UAE (+971)' },
+  { code: '+966', label: 'Saudi Arabia (+966)' },
+  { code: '+81', label: 'Japan (+81)' },
+  { code: '+49', label: 'Germany (+49)' },
+  { code: '+33', label: 'France (+33)' },
+];
+
+export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, savedJobs, applications, onSaveJob, onRemoveSaved }) {
   const [section, setSection] = useState('home');
   const [topSearch, setTopSearch] = useState('');
   const [jobKw, setJobKw] = useState('');
@@ -149,18 +164,29 @@ export default function Dashboard({ user, onSignOut, onApply, savedJobs, applica
   const [msgInput, setMsgInput] = useState('');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
+  const profileFileInputRef = useRef(null);
   const [chatHistory, setChatHistory] = useState([
     { type: 'recv', text: "Hi! We reviewed your application and would like to schedule an interview. Are you available this week?", time: '10:30 AM' },
     { type: 'sent', text: "That sounds great! I'm available Tuesday or Thursday afternoon.", time: '10:45 AM' },
     { type: 'recv', text: "Perfect! Let's do Thursday at 3 PM via Zoom. We'll send you the link.", time: '11:00 AM' },
   ]);
   const [toggles, setToggles] = useState({ emailAlerts: true, appStatus: true, msgNotif: true, weeklyDigest: false, marketing: false, profileVisible: true, showResume: true, openToWork: true, hideFromCurrent: false });
-  const [profileForm, setProfileForm] = useState({ fname: user.fname || '', lname: user.lname || '', email: user.email || '', phone: '', title: '', location: '', bio: '' });
+  const [profileForm, setProfileForm] = useState({ fname: user.fname || '', lname: user.lname || '', phone: '', title: '', location: '', bio: '' });
+  const [profileImageUrl, setProfileImageUrl] = useState('');
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+1');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [accountEmail, setAccountEmail] = useState(user.email || '');
+  const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confPass, setConfPass] = useState('');
+  const [profileErrors, setProfileErrors] = useState({ fname: '', lname: '', phone: '', title: '', location: '', bio: '' });
+  const [accountErrors, setAccountErrors] = useState({ email: '', current: '', newPass: '', confirm: '' });
 
-  const displayName = user.fname || 'Guest';
-  const initials = (user.fname?.[0] || 'G') + (user.lname?.[0] || '');
+  const displayName = profileForm.fname?.trim() || user.fname || 'Guest';
+  const initials = `${profileForm.fname?.[0] || user.fname?.[0] || 'G'}${profileForm.lname?.[0] || user.lname?.[0] || ''}`;
+  const isRecruiterRole = ['recruiter', 'recuteir'].includes(String(user.role || '').toLowerCase());
   const sectionTitles = { home: 'Home', find: 'Find a Job', saved: 'Saved Jobs', applications: 'My Applications', messages: 'Messages', recruiters: 'Recruiters', candidates: 'Candidates', blog: 'Blog', news: 'News', settings: 'Settings' };
 
   useEffect(() => {
@@ -172,6 +198,51 @@ export default function Dashboard({ user, onSignOut, onApply, savedJobs, applica
 
     document.addEventListener('mousedown', closeAccountMenu);
     return () => document.removeEventListener('mousedown', closeAccountMenu);
+  }, []);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const profile = await getMyProfile();
+
+        const phoneText = profile.phone || '';
+        const parsedPhone = phoneText.match(/^(\+\d{1,4})\s*(.*)$/);
+
+        if (parsedPhone) {
+          const incomingCode = parsedPhone[1];
+          if (COUNTRY_PHONE_CODES.some(item => item.code === incomingCode)) {
+            setPhoneCountryCode(incomingCode);
+          }
+        }
+
+        setProfileForm({
+          fname: profile.first_name || user.fname || '',
+          lname: profile.last_name || user.lname || '',
+          phone: parsedPhone ? parsedPhone[2] : phoneText,
+          title: profile.professional_title || '',
+          location: profile.location || '',
+          bio: profile.bio || '',
+        });
+
+        setAccountEmail(profile.email || user.email || '');
+        if (profile.profile_image) {
+          setProfileImageUrl(getProfileImageUrl(profile.profile_image));
+        }
+
+        const userPatch = {
+          fname: profile.first_name || user.fname || '',
+          lname: profile.last_name || user.lname || '',
+          email: profile.email || user.email || '',
+        };
+
+        updateStoredSessionUser(userPatch);
+        if (onUserUpdate) onUserUpdate(userPatch);
+      } catch {
+        // Keep defaults from login session when profile is not created yet.
+      }
+    }
+
+    loadProfile();
   }, []);
 
   function doJobSearch() {
@@ -198,16 +269,159 @@ export default function Dashboard({ user, onSignOut, onApply, savedJobs, applica
     setTimeout(() => setChatHistory(h => [...h, { type: 'recv', text: replies[Math.floor(Math.random() * replies.length)], time: 'Just now' }]), 1200);
   }
 
-  function saveProfile() {
-    toast('Profile saved successfully!', 'success');
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(email).trim());
   }
 
-  function changePassword() {
-    if (!newPass || !confPass) { toast('Please fill in both password fields.', 'error'); return; }
-    if (newPass.length < 6) { toast('Password must be at least 6 characters.', 'error'); return; }
-    if (newPass !== confPass) { toast('Passwords do not match.', 'error'); return; }
-    toast('Password updated successfully!', 'success');
-    setNewPass(''); setConfPass('');
+  function validateProfile() {
+    const numericPhone = profileForm.phone.replace(/\D/g, '');
+
+    const nextErrors = {
+      fname: profileForm.fname.trim() ? '' : 'First name is required.',
+      lname: profileForm.lname.trim() ? '' : 'Last name is required.',
+      phone: !profileForm.phone.trim() ? 'Phone is required.' : (numericPhone.length < 6 ? 'Enter a valid phone number.' : ''),
+      title: profileForm.title.trim() ? '' : 'Professional title is required.',
+      location: profileForm.location.trim() ? '' : 'Location is required.',
+      bio: profileForm.bio.trim() ? '' : 'Bio is required.',
+    };
+
+    setProfileErrors(nextErrors);
+    return Object.values(nextErrors).every(err => !err);
+  }
+
+  async function saveProfile() {
+    if (!validateProfile()) {
+      toast('Please complete all required profile fields.', 'error');
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const response = await updateMyProfile({
+        first_name: profileForm.fname.trim(),
+        last_name: profileForm.lname.trim(),
+        phone: `${phoneCountryCode} ${profileForm.phone.trim()}`,
+        professional_title: profileForm.title.trim(),
+        location: profileForm.location.trim(),
+        bio: profileForm.bio.trim(),
+      });
+
+      const userPatch = {
+        fname: profileForm.fname.trim(),
+        lname: profileForm.lname.trim(),
+      };
+
+      updateStoredSessionUser(userPatch);
+      if (onUserUpdate) onUserUpdate(userPatch);
+
+      const createdNow = String(response?.message || '').toLowerCase().includes('created');
+      toast(createdNow ? 'Profile added successfully!' : 'Profile updated successfully!', 'success');
+    } catch (error) {
+      toast(error.message || 'Failed to save profile.', 'error');
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  async function handleProfilePhotoSelect(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast('Only JPG and PNG images are allowed.', 'error');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast('Image size must be 5MB or less.', 'error');
+      event.target.value = '';
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const result = await uploadMyProfileImage(file);
+      const nextUrl = `${getProfileImageUrl(result.file)}?v=${Date.now()}`;
+      setProfileImageUrl(nextUrl);
+      toast('Profile photo updated!', 'success');
+    } catch (error) {
+      toast(error.message || 'Failed to upload image.', 'error');
+    } finally {
+      setUploadingImage(false);
+      event.target.value = '';
+    }
+  }
+
+  function validateAccount() {
+    const wantsEmailChange = accountEmail.trim() !== (user.email || '').trim();
+    const wantsPasswordChange = !!newPass || !!confPass;
+
+    const nextErrors = { email: '', current: '', newPass: '', confirm: '' };
+
+    if (!wantsEmailChange && !wantsPasswordChange) {
+      nextErrors.email = 'No account changes to update.';
+    }
+
+    if (wantsEmailChange && !isValidEmail(accountEmail)) {
+      nextErrors.email = 'Enter a valid email address.';
+    }
+
+    if (wantsPasswordChange) {
+      if (!currentPass) nextErrors.current = 'Current password is required.';
+      if (!newPass) nextErrors.newPass = 'New password is required.';
+      else if (newPass.length < 6) nextErrors.newPass = 'Password must be at least 6 characters.';
+      if (!confPass) nextErrors.confirm = 'Please confirm your new password.';
+      else if (newPass !== confPass) nextErrors.confirm = 'Passwords do not match.';
+    }
+
+    setAccountErrors(nextErrors);
+    return Object.values(nextErrors).every(err => !err);
+  }
+
+  async function saveAccount() {
+    if (!validateAccount()) {
+      toast('Please correct account form errors.', 'error');
+      return;
+    }
+
+    const wantsEmailChange = accountEmail.trim() !== (user.email || '').trim();
+    const wantsPasswordChange = !!newPass;
+
+    const payload = {};
+    if (wantsEmailChange) payload.email = accountEmail.trim();
+    if (wantsPasswordChange) {
+      payload.current_password = currentPass;
+      payload.new_password = newPass;
+    }
+
+    setAccountSaving(true);
+    try {
+      const response = await updateMyAccount(payload);
+
+      if (response?.user?.email) {
+        const userPatch = { email: response.user.email };
+        updateStoredSessionUser(userPatch);
+        if (onUserUpdate) onUserUpdate(userPatch);
+      }
+
+      setCurrentPass('');
+      setNewPass('');
+      setConfPass('');
+      setAccountErrors({ email: '', current: '', newPass: '', confirm: '' });
+      toast('Account updated successfully!', 'success');
+    } catch (error) {
+      const errorMessage = error.message || 'Failed to update account.';
+
+      if (errorMessage.toLowerCase().includes('current password')) {
+        setAccountErrors(prev => ({ ...prev, current: errorMessage }));
+      }
+
+      toast(errorMessage, 'error');
+    } finally {
+      setAccountSaving(false);
+    }
   }
 
   const NAV_ITEMS = [
@@ -243,10 +457,12 @@ export default function Dashboard({ user, onSignOut, onApply, savedJobs, applica
         </nav>
         <div className="jobie-sidebar-footer">
           <div className="jobie-sidebar-user">
-            <div className="jobie-sidebar-avatar">{initials}</div>
+            <div className="jobie-sidebar-avatar">
+              {profileImageUrl ? <img src={profileImageUrl} alt="Profile" /> : initials}
+            </div>
             <div>
-              <div className="jobie-sidebar-uname">{displayName} {user.lname || ''}</div>
-              <div className="jobie-sidebar-role">{user.role === 'recruiter' ? 'Recruiter' : 'Job Seeker'}</div>
+              <div className="jobie-sidebar-uname">{`${displayName}${profileForm.lname ? ` ${profileForm.lname}` : ''}`.trim()}</div>
+              <div className="jobie-sidebar-role">{isRecruiterRole ? 'Recruiter' : 'Job Seeker'}</div>
             </div>
           </div>
           <button className="jobie-sidebar-signout" onClick={onSignOut}>
@@ -273,10 +489,12 @@ export default function Dashboard({ user, onSignOut, onApply, savedJobs, applica
             <div className="topbar-icon-btn" onClick={() => toast('No new notifications', 'info')}>🔔<span className="topbar-dot" /></div>
             <div className="topbar-user-wrap" ref={accountMenuRef}>
               <button className={`topbar-user${accountMenuOpen ? ' open' : ''}`} onClick={() => setAccountMenuOpen(v => !v)}>
-                <span className="topbar-avatar">{initials}</span>
+                <span className="topbar-avatar">
+                  {profileImageUrl ? <img src={profileImageUrl} alt="Profile" /> : initials}
+                </span>
                 <span className="topbar-user-info">
                   <span className="name">{displayName}</span>
-                  <span className="role">{user.role === 'recruiter' ? 'Recruiter' : 'Job Seeker'}</span>
+                  <span className="role">{isRecruiterRole ? 'Recruiter' : 'Job Seeker'}</span>
                 </span>
                 <svg className="topbar-user-chevron" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="m6 9 6 6 6-6" />
@@ -624,28 +842,176 @@ export default function Dashboard({ user, onSignOut, onApply, savedJobs, applica
                     <div className="settings-panel-section active">
                       <h3>Profile Information</h3>
                       <div className="avatar-upload">
-                        <div className="avatar-big">{initials}</div>
-                        <div><button className="btn-upload-photo" onClick={() => toast('Photo upload feature coming soon!', 'info')}>Upload Photo</button><p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>JPG, PNG, max 2MB</p></div>
+                        <div className="avatar-big">{profileImageUrl ? <img src={profileImageUrl} alt="Profile" /> : initials}</div>
+                        <div>
+                          <input
+                            ref={profileFileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg"
+                            className="profile-file-input"
+                            onChange={handleProfilePhotoSelect}
+                          />
+                          <button className="btn-upload-photo" onClick={() => profileFileInputRef.current?.click()} disabled={uploadingImage}>
+                            {uploadingImage ? 'Uploading...' : 'Upload Photo'}
+                          </button>
+                          <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>JPG, PNG, max 5MB</p>
+                        </div>
                       </div>
                       <div className="settings-row">
-                        <div className="settings-field"><label>First Name</label><input value={profileForm.fname} onChange={e => setProfileForm(f => ({ ...f, fname: e.target.value }))} placeholder="First Name" /></div>
-                        <div className="settings-field"><label>Last Name</label><input value={profileForm.lname} onChange={e => setProfileForm(f => ({ ...f, lname: e.target.value }))} placeholder="Last Name" /></div>
+                        <div className="settings-field">
+                          <label>First Name</label>
+                          <input
+                            value={profileForm.fname}
+                            className={profileErrors.fname ? 'settings-input-error' : ''}
+                            onChange={e => {
+                              setProfileForm(f => ({ ...f, fname: e.target.value }));
+                              setProfileErrors(prev => ({ ...prev, fname: '' }));
+                            }}
+                            placeholder="First Name"
+                          />
+                          {profileErrors.fname && <div className="settings-error-msg">{profileErrors.fname}</div>}
+                        </div>
+                        <div className="settings-field">
+                          <label>Last Name</label>
+                          <input
+                            value={profileForm.lname}
+                            className={profileErrors.lname ? 'settings-input-error' : ''}
+                            onChange={e => {
+                              setProfileForm(f => ({ ...f, lname: e.target.value }));
+                              setProfileErrors(prev => ({ ...prev, lname: '' }));
+                            }}
+                            placeholder="Last Name"
+                          />
+                          {profileErrors.lname && <div className="settings-error-msg">{profileErrors.lname}</div>}
+                        </div>
                       </div>
-                      <div className="settings-field"><label>Email</label><input type="email" value={profileForm.email} onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))} placeholder="your@email.com" /></div>
-                      <div className="settings-field"><label>Phone</label><input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 234 567 890" /></div>
-                      <div className="settings-field"><label>Professional Title</label><input value={profileForm.title} onChange={e => setProfileForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Senior Software Engineer" /></div>
-                      <div className="settings-field"><label>Location</label><input value={profileForm.location} onChange={e => setProfileForm(f => ({ ...f, location: e.target.value }))} placeholder="City, Country" /></div>
-                      <div className="settings-field"><label>Bio</label><textarea value={profileForm.bio} onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))} style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none', minHeight: 90, resize: 'vertical' }} placeholder="Tell employers about yourself..." /></div>
-                      <button className="settings-save" onClick={saveProfile}>Save Changes</button>
+                      <div className="settings-field">
+                        <label>Phone</label>
+                        <div className="settings-phone-group">
+                          <select
+                            value={phoneCountryCode}
+                            onChange={e => setPhoneCountryCode(e.target.value)}
+                            className={profileErrors.phone ? 'settings-input-error' : ''}
+                          >
+                            {COUNTRY_PHONE_CODES.map(item => (
+                              <option key={item.code} value={item.code}>{item.label}</option>
+                            ))}
+                          </select>
+                          <input
+                            value={profileForm.phone}
+                            className={profileErrors.phone ? 'settings-input-error' : ''}
+                            onChange={e => {
+                              setProfileForm(f => ({ ...f, phone: e.target.value }));
+                              setProfileErrors(prev => ({ ...prev, phone: '' }));
+                            }}
+                            placeholder="555 123 4567"
+                          />
+                        </div>
+                        {profileErrors.phone && <div className="settings-error-msg">{profileErrors.phone}</div>}
+                      </div>
+                      <div className="settings-field">
+                        <label>Professional Title</label>
+                        <input
+                          value={profileForm.title}
+                          className={profileErrors.title ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setProfileForm(f => ({ ...f, title: e.target.value }));
+                            setProfileErrors(prev => ({ ...prev, title: '' }));
+                          }}
+                          placeholder="e.g. Senior Software Engineer"
+                        />
+                        {profileErrors.title && <div className="settings-error-msg">{profileErrors.title}</div>}
+                      </div>
+                      <div className="settings-field">
+                        <label>Location</label>
+                        <input
+                          value={profileForm.location}
+                          className={profileErrors.location ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setProfileForm(f => ({ ...f, location: e.target.value }));
+                            setProfileErrors(prev => ({ ...prev, location: '' }));
+                          }}
+                          placeholder="City, Country"
+                        />
+                        {profileErrors.location && <div className="settings-error-msg">{profileErrors.location}</div>}
+                      </div>
+                      <div className="settings-field">
+                        <label>Bio</label>
+                        <textarea
+                          value={profileForm.bio}
+                          className={profileErrors.bio ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setProfileForm(f => ({ ...f, bio: e.target.value }));
+                            setProfileErrors(prev => ({ ...prev, bio: '' }));
+                          }}
+                          style={{ width: '100%', padding: '11px 14px', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none', minHeight: 90, resize: 'vertical' }}
+                          placeholder="Tell employers about yourself..."
+                        />
+                        {profileErrors.bio && <div className="settings-error-msg">{profileErrors.bio}</div>}
+                      </div>
+                      <button className="settings-save" onClick={saveProfile} disabled={profileSaving}>{profileSaving ? 'Saving...' : 'Save Changes'}</button>
                     </div>
                   )}
                   {settingsPanel === 'account' && (
                     <div className="settings-panel-section active">
                       <h3>Account &amp; Security</h3>
-                      <div className="settings-field"><label>Current Password</label><input type="password" placeholder="Enter current password" /></div>
-                      <div className="settings-field"><label>New Password</label><input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Min 6 characters" /></div>
-                      <div className="settings-field"><label>Confirm New Password</label><input type="password" value={confPass} onChange={e => setConfPass(e.target.value)} placeholder="Repeat new password" /></div>
-                      <button className="settings-save" onClick={changePassword}>Update Password</button>
+                      <div className="settings-field">
+                        <label>Account Email</label>
+                        <input
+                          type="email"
+                          value={accountEmail}
+                          className={accountErrors.email ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setAccountEmail(e.target.value);
+                            setAccountErrors(prev => ({ ...prev, email: '' }));
+                          }}
+                          placeholder="your@email.com"
+                        />
+                        {accountErrors.email && <div className="settings-error-msg">{accountErrors.email}</div>}
+                      </div>
+                      <div className="settings-field">
+                        <label>Current Password</label>
+                        <input
+                          type="password"
+                          value={currentPass}
+                          className={accountErrors.current ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setCurrentPass(e.target.value);
+                            setAccountErrors(prev => ({ ...prev, current: '' }));
+                          }}
+                          placeholder="Required for password change"
+                        />
+                        {accountErrors.current && <div className="settings-error-msg">{accountErrors.current}</div>}
+                      </div>
+                      <div className="settings-field">
+                        <label>New Password</label>
+                        <input
+                          type="password"
+                          value={newPass}
+                          className={accountErrors.newPass ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setNewPass(e.target.value);
+                            setAccountErrors(prev => ({ ...prev, newPass: '' }));
+                          }}
+                          placeholder="Min 6 characters"
+                        />
+                        {accountErrors.newPass && <div className="settings-error-msg">{accountErrors.newPass}</div>}
+                      </div>
+                      <div className="settings-field">
+                        <label>Confirm New Password</label>
+                        <input
+                          type="password"
+                          value={confPass}
+                          className={accountErrors.confirm ? 'settings-input-error' : ''}
+                          onChange={e => {
+                            setConfPass(e.target.value);
+                            setAccountErrors(prev => ({ ...prev, confirm: '' }));
+                          }}
+                          placeholder="Repeat new password"
+                        />
+                        {accountErrors.confirm && <div className="settings-error-msg">{accountErrors.confirm}</div>}
+                      </div>
+                      <button className="settings-save" onClick={saveAccount} disabled={accountSaving}>{accountSaving ? 'Updating...' : 'Update Account'}</button>
                     </div>
                   )}
                   {settingsPanel === 'notifications' && (

@@ -9,8 +9,21 @@ const jwt = require("jsonwebtoken");
 exports.signup = async (req, res) => {
   const { email, password, role } = req.body;
 
+  const roleAliases = {
+    jobseeker: "student",
+    student: "student",
+    recruiter: "recuteir",
+    recuteir: "recuteir",
+  };
+
+  const normalizedRole = roleAliases[String(role || "").toLowerCase()];
+
   if (!email || !password || !role) {
     return res.status(400).json({ error: "All fields required" });
+  }
+
+  if (!normalizedRole) {
+    return res.status(400).json({ error: "Invalid role. Allowed: student or recuteir" });
   }
 
   try {
@@ -28,7 +41,7 @@ exports.signup = async (req, res) => {
       // Insert user
       db.query(
         "INSERT INTO auth_users (email, password, role) VALUES (?, ?, ?)",
-        [email, hashedPassword, role],
+        [email, hashedPassword, normalizedRole],
         (err2, result2) => {
           if (err2) return res.status(500).json({ error: "Signup failed" });
 

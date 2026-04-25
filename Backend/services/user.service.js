@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const bcrypt = require("bcrypt");
 
 
 // =====================
@@ -178,6 +179,98 @@ exports.uploadProfileImage = (req, res) => {
             return res.json({ message: "Image updated", file: imagePath });
           }
         );
+      }
+    }
+  );
+};
+
+// =====================
+// UPDATE ACCOUNT (EMAIL/PASSWORD)
+// =====================
+exports.updateAccount = (req, res) => {
+  const userId = req.user.id;
+  const { email, current_password, new_password } = req.body;
+
+  const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const wantsEmailUpdate = typeof email === "string" && trimmedEmail.length > 0;
+  const wantsPasswordUpdate = typeof new_password === "string" && new_password.length > 0;
+
+  if (!wantsEmailUpdate && !wantsPasswordUpdate) {
+    return res.status(400).json({ error: "Provide email and/or new password to update" });
+  }
+
+  if (wantsEmailUpdate && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmedEmail)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
+  if (wantsPasswordUpdate) {
+    if (!current_password) {
+      return res.status(400).json({ error: "Current password is required to set a new password" });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: "New password must be at least 6 characters" });
+    }
+  }
+
+  db.query(
+    "SELECT id, email, password, role FROM auth_users WHERE id = ?",
+    [userId],
+    async (err, users) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      if (users.length === 0) return res.status(404).json({ error: "User not found" });
+
+      const user = users[0];
+      const fields = [];
+      const values = [];
+
+      const continueWithUpdate = async () => {
+        if (wantsPasswordUpdate) {
+          const isMatch = await bcrypt.compare(current_password, user.password);
+          if (!isMatch) {
+            return res.status(401).json({ error: "Current password is incorrect" });
+          }
+
+          const hashedPassword = await bcrypt.hash(new_password, 10);
+          fields.push("password = ?");
+          values.push(hashedPassword);
+        }
+
+        if (fields.length === 0) {
+          return res.status(400).json({ error: "No changes detected" });
+        }
+
+        values.push(userId);
+
+        db.query(
+          `UPDATE auth_users SET ${fields.join(", ")} WHERE id = ?`,
+          values,
+          (updateErr) => {
+            if (updateErr) return res.status(500).json({ error: "Account update failed" });
+
+            return res.json({
+              message: "Account updated successfully",
+              user: {
+                id: userId,
+                email: wantsEmailUpdate ? trimmedEmail : user.email,
+                role: user.role,
+              },
+            });
+          }
+        );
+      };
+
+      if (wantsEmailUpdate && trimmedEmail !== user.email) {
+        db.query("SELECT id FROM auth_users WHERE email = ? AND id <> ?", [trimmedEmail, userId], (emailErr, rows) => {
+          if (emailErr) return res.status(500).json({ error: "Database error" });
+          if (rows.length > 0) return res.status(400).json({ error: "Email already exists" });
+
+          fields.push("email = ?");
+          values.push(trimmedEmail);
+          continueWithUpdate();
+        });
+      } else {
+        continueWithUpdate();
       }
     }
   );

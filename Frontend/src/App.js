@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './index.css';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import AuthModal from './components/AuthModal';
 import { ToastContainer, useToast } from './components/Toast';
 import { toast } from './components/Toast';
+import { clearStoredSession, getStoredSession } from './API/authApi';
 
 export default function App() {
   const { toasts, showToast } = useToast();
@@ -14,6 +15,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [savedJobs, setSavedJobs] = useState([]);
   const [applications, setApplications] = useState([]);
+
+  useEffect(() => {
+    const session = getStoredSession();
+    if (session?.user) {
+      setCurrentUser(session.user);
+      setPage('dashboard');
+    }
+  }, []);
 
   function openAuth(tab = 'signin') {
     setAuthTab(tab);
@@ -27,8 +36,13 @@ export default function App() {
     window.scrollTo(0, 0);
   }
 
+  function handleUserUpdate(userPatch) {
+    setCurrentUser(prev => ({ ...prev, ...userPatch }));
+  }
+
   function handleSignOut() {
     setCurrentUser(null);
+    clearStoredSession();
     setSavedJobs([]);
     setApplications([]);
     setPage('landing');
@@ -64,6 +78,7 @@ export default function App() {
         <Dashboard
           user={currentUser}
           onSignOut={handleSignOut}
+          onUserUpdate={handleUserUpdate}
           onApply={handleApply}
           savedJobs={savedJobs}
           applications={applications}

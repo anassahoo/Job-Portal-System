@@ -8,6 +8,10 @@ exports.updateProfile = (req, res) => {
   userService.updateProfile(req, res);
 };
 
+exports.updateAccount = (req, res) => {
+  userService.updateAccount(req, res);
+};
+
 exports.uploadProfileImage = (req, res) => {
   userService.uploadProfileImage(req, res);
 };

@@ -1,26 +1,46 @@
-import React from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
-// 1. The 'toast' object/function that your components are calling
-export const toast = (message) => {
-  console.log("Toast message: ", message);
-};
-// Adding common methods just in case your code calls toast.success() or toast.error()
-toast.success = (msg) => console.log("Success: ", msg);
-toast.error = (msg) => console.log("Error: ", msg);
-toast.info = (msg) => console.log("Info: ", msg);
-toast.warn = (msg) => console.log("Warning: ", msg);
+let toastHandler = null;
 
-// 2. The 'ToastContainer' component that App.js is looking for
-export const ToastContainer = () => {
-  return <div style={{ display: 'none' }}></div>;
-};
+export function useToast() {
+  const [toasts, setToasts] = useState([]);
 
-// 3. The 'useToast' hook we added previously
-export const useToast = () => {
-  return toast;
-};
+  const showToast = useCallback((msg, type = 'info') => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, msg, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
 
-// 4. Default export just in case
+  useEffect(() => {
+    toastHandler = showToast;
+    return () => {
+      toastHandler = null;
+    };
+  }, [showToast]);
+
+  return { toasts, showToast };
+}
+
+export function toast(msg, type = 'info') {
+  if (toastHandler) {
+    toastHandler(msg, type);
+  }
+}
+
+export function ToastContainer({ toasts }) {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+
+  return (
+    <div className="toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className={`toast-msg ${t.type}`}>
+          <span>{icons[t.type] || 'ℹ️'}</span> {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Toast() {
   return null;
 }

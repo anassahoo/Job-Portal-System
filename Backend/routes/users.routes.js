@@ -8,6 +8,7 @@ const upload = require("../middleware/upload");
 // 🔐 Protected Routes
 router.get("/me", authMiddleware, userController.getProfile);
 router.put("/me", authMiddleware, userController.updateProfile);
+router.put("/me/account", authMiddleware, userController.updateAccount);
 router.post("/upload", authMiddleware, upload.single("image"), userController.uploadProfileImage);
 
 module.exports = router;
