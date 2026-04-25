@@ -46,11 +46,12 @@ export async function login({ email, password }) {
 	const data = await request('/auth/login', { email, password });
 	const token = data.token;
 	const decoded = decodeJwt(token) || {};
+	const normalizedRole = data?.user?.role || decoded.role || 'student';
 
 	const user = {
-		id: decoded.id,
-		role: decoded.role || 'student',
-		email,
+		id: data?.user?.id || decoded.id,
+		role: normalizedRole,
+		email: data?.user?.email || email,
 		fname: email?.split('@')?.[0] || 'User',
 		lname: '',
 	};

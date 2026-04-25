@@ -103,3 +103,37 @@ exports.getApplications = (req, res) => {
     }
   );
 };
+
+// =====================
+// GET APPLICATIONS FOR RECRUITER
+// =====================
+exports.getRecruiterApplications = (req, res) => {
+  const role = String(req.user.role || "").toLowerCase();
+  if (!["recuteir", "recruiter"].includes(role)) {
+    return res.status(403).json({ error: "Recruiter access required" });
+  }
+
+  db.query(
+    `SELECT
+      a.id,
+      a.user_id,
+      a.job_id,
+      a.match_percentage,
+      a.resume_score,
+      a.project_score,
+      a.prediction,
+      a.status,
+      u.email AS applicant_email,
+      j.title AS job_title,
+      c.name AS company_name
+    FROM applications a
+    LEFT JOIN auth_users u ON a.user_id = u.id
+    LEFT JOIN jobs j ON a.job_id = j.id
+    LEFT JOIN companies c ON j.company_id = c.id
+    ORDER BY a.id DESC`,
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "DB error" });
+      return res.json(result);
+    }
+  );
+};

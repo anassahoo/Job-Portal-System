@@ -6,6 +6,7 @@ import jobBoxIcon from '../assets/brand/jobbox-icon.jpg';
 import welcomeBackImage from '../assets/dashboard/welcome-back.webp';
 import { updateStoredSessionUser } from '../API/authApi';
 import { getMyProfile, getProfileImageUrl, updateMyAccount, updateMyProfile, uploadMyProfileImage } from '../API/userAPI';
+import { createCompany, createJob, getCompanies, getJobs, getRecruiterApplications } from '../API/recruiterApi';
 
 const DASHBOARD_ICONS = {
   home: (
@@ -187,7 +188,31 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
   const displayName = profileForm.fname?.trim() || user.fname || 'Guest';
   const initials = `${profileForm.fname?.[0] || user.fname?.[0] || 'G'}${profileForm.lname?.[0] || user.lname?.[0] || ''}`;
   const isRecruiterRole = ['recruiter', 'recuteir'].includes(String(user.role || '').toLowerCase());
-  const sectionTitles = { home: 'Home', find: 'Find a Job', saved: 'Saved Jobs', applications: 'My Applications', messages: 'Messages', recruiters: 'Recruiters', candidates: 'Candidates', blog: 'Blog', news: 'News', settings: 'Settings' };
+  const sectionTitles = {
+    // Student sections
+    home: 'Home',
+    find: 'Find a Job',
+    saved: 'Saved Jobs',
+    applications: 'My Applications',
+    messages: 'Messages',
+    recruiters: 'Recruiters',
+    candidates: 'Candidates',
+    blog: 'Blog',
+    news: 'News',
+    settings: 'Settings',
+    // Recruiter sections
+    recHome: 'Dashboard',
+    company: 'Company Profile',
+    postJob: 'Post a Job',
+    myJobs: 'My Jobs',
+    applicants: 'Applicants',
+  };
+  const [companyForm, setCompanyForm] = useState({ name: '', description: '' });
+  const [jobForm, setJobForm] = useState({ title: '', description: '', jobType: 'Full-Time' });
+  const [myJobs, setMyJobs] = useState([]);
+  const [companyData, setCompanyData] = useState(null);
+  const [applicantList, setApplicantList] = useState([]);
+  const [companyId, setCompanyId] = useState(null);
 
   useEffect(() => {
     function closeAccountMenu(event) {
@@ -244,6 +269,130 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
 
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (isRecruiterRole && section === 'home') {
+      setSection('recHome');
+    }
+
+    if (!isRecruiterRole && ['recHome', 'company', 'postJob', 'myJobs', 'applicants'].includes(section)) {
+      setSection('home');
+    }
+  }, [isRecruiterRole, section]);
+
+  useEffect(() => {
+    async function loadRecruiterData() {
+      if (!isRecruiterRole) return;
+
+      try {
+        const [companies, jobs, applicants] = await Promise.all([
+          getCompanies(),
+          getJobs(),
+          getRecruiterApplications(),
+        ]);
+
+        if (Array.isArray(companies) && companies.length > 0) {
+          const firstCompany = companies[0];
+          setCompanyData({
+            name: firstCompany.name || '',
+            description: firstCompany.description || '',
+          });
+          setCompanyId(firstCompany.id || null);
+        } else {
+          setCompanyData(null);
+          setCompanyId(null);
+        }
+
+        const mappedJobs = Array.isArray(jobs)
+          ? jobs
+              .filter(j => !companyId || j.company_id === companyId)
+              .map(j => ({
+                id: j.id,
+                title: j.title,
+                company: j.company_name || companyData?.name || 'Company',
+                posted: `Job #${j.id}`,
+                applicants: Array.isArray(applicants) ? applicants.filter(a => a.job_id === j.id).length : 0,
+                status: 'Active',
+              }))
+          : [];
+        setMyJobs(mappedJobs);
+
+        const mappedApplicants = Array.isArray(applicants)
+          ? applicants.map(a => ({
+              id: a.id,
+              name: a.applicant_email || `Candidate #${a.user_id}`,
+              role: a.job_title || 'Applied Role',
+              match: `${a.match_percentage || 0}%`,
+              status: a.status || 'Pending',
+              applied: `Application #${a.id}`,
+            }))
+          : [];
+        setApplicantList(mappedApplicants);
+      } catch (error) {
+        toast(error.message || 'Failed to load recruiter dashboard data.', 'error');
+      }
+    }
+
+    loadRecruiterData();
+  }, [isRecruiterRole, companyId]);
+
+  async function handleCreateCompany() {
+    if (!companyForm.name.trim() || !companyForm.description.trim()) {
+      toast('Please fill in all fields', 'error');
+      return;
+    }
+
+    try {
+      const result = await createCompany({
+        name: companyForm.name.trim(),
+        description: companyForm.description.trim(),
+      });
+
+      setCompanyData({ name: companyForm.name.trim(), description: companyForm.description.trim() });
+      setCompanyId(result.company_id || null);
+      setCompanyForm({ name: '', description: '' });
+      toast('Company profile created!', 'success');
+    } catch (error) {
+      toast(error.message || 'Failed to create company profile', 'error');
+    }
+  }
+
+  async function handlePostJob() {
+    if (!jobForm.title.trim() || !jobForm.description.trim()) {
+      toast('Please fill in all fields', 'error');
+      return;
+    }
+
+    if (!companyId) {
+      toast('Please create a company profile first.', 'error');
+      return;
+    }
+
+    try {
+      const result = await createJob({
+        title: jobForm.title.trim(),
+        description: jobForm.description.trim(),
+        company_id: companyId,
+      });
+
+      setMyJobs(prev => [
+        {
+          id: result.job_id || Date.now(),
+          title: jobForm.title.trim(),
+          company: companyData?.name || 'Company',
+          posted: 'Just now',
+          applicants: 0,
+          status: 'Active',
+        },
+        ...prev,
+      ]);
+      setJobForm({ title: '', description: '', jobType: 'Full-Time' });
+      setSection('myJobs');
+      toast('Job posted successfully!', 'success');
+    } catch (error) {
+      toast(error.message || 'Failed to post job', 'error');
+    }
+  }
 
   function doJobSearch() {
     const kw = (jobKw || topSearch).toLowerCase();
@@ -424,7 +573,15 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     }
   }
 
-  const NAV_ITEMS = [
+  const NAV_ITEMS = isRecruiterRole ? [
+    { key: 'recHome', icon: 'home', label: 'Dashboard' },
+    { key: 'company', icon: 'recruiters', label: 'Company Profile' },
+    { key: 'postJob', icon: 'find', label: 'Post a Job' },
+    { key: 'myJobs', icon: 'blog', label: 'My Jobs' },
+    { key: 'applicants', icon: 'candidates', label: 'Applicants' },
+    { key: 'messages', icon: 'messages', label: 'Messages', badge: 3 },
+    { key: 'settings', icon: 'settings', label: 'Settings' },
+  ] : [
     { key: 'home', icon: 'home', label: 'Home' },
     { key: 'find', icon: 'find', label: 'Find a Job' },
     { key: 'saved', icon: 'saved', label: 'Saved Jobs', badge: savedJobs.length },
@@ -520,7 +677,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         <div className={`jobie-content${section === 'messages' ? ' jobie-content-messages' : ''}`}>
 
           {/* HOME */}
-          {section === 'home' && (
+          {!isRecruiterRole && section === 'home' && (
             <div>
               <div
                 className="welcome-banner"
@@ -570,7 +727,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* FIND JOB */}
-          {section === 'find' && (
+          {!isRecruiterRole && section === 'find' && (
             <div>
               <div className="find-job-search">
                 <div className="find-job-field"><label>Job Title / Keyword</label><input value={jobKw} onChange={e => setJobKw(e.target.value)} placeholder="e.g. React Developer" /></div>
@@ -616,7 +773,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* SAVED JOBS */}
-          {section === 'saved' && (
+          {!isRecruiterRole && section === 'saved' && (
             <div>
               {savedJobs.length === 0 ? (
                 <div className="app-empty">No saved jobs yet. Browse jobs and click 🔖 to save them.</div>
@@ -653,7 +810,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* APPLICATIONS */}
-          {section === 'applications' && (
+          {!isRecruiterRole && section === 'applications' && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflow: 'hidden' }}>
               {applications.length === 0 ? (
                 <div className="app-empty">No applications yet. Find a job and apply!</div>
@@ -715,8 +872,188 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
             </div>
           )}
 
+          {/* RECRUITER DASHBOARD HOME */}
+          {isRecruiterRole && section === 'recHome' && (
+            <div>
+              <div className="welcome-banner" style={{ backgroundImage: `linear-gradient(90deg, rgba(7, 28, 56, .84) 0%, rgba(10, 101, 204, .54) 58%, rgba(10, 101, 204, .16) 100%), url(${welcomeBackImage})` }}>
+                <div className="welcome-banner-content">
+                  <div className="welcome-slide-bar" aria-hidden="true" />
+                  <h2>Welcome back, {displayName}!</h2>
+                  <p>{companyData ? `${companyData.name} · ` : ''}You have {myJobs.length} active job postings. {applicantList.length} new applicants to review!</p>
+                </div>
+              </div>
+              <div className="dash-stats-row">
+                <div className="dash-stat-card"><h4>Active Jobs</h4><div className="num">{myJobs.length}</div><div className="change">Currently posted</div></div>
+                <div className="dash-stat-card"><h4>Total Applicants</h4><div className="num">{applicantList.length}</div><div className="change">Across all jobs</div></div>
+                <div className="dash-stat-card"><h4>Interviews</h4><div className="num">{applicantList.filter(a => a.status === 'Interviewed').length}</div><div className="change">Scheduled</div></div>
+              </div>
+              <div className="dash-two-col">
+                <div className="dash-panel">
+                  <h3>Recent Applications</h3>
+                  {applicantList.length === 0 ? <div style={{ color: '#9CA3AF', fontSize: 13 }}>No applications yet.</div> : (
+                    <div className="recent-apps-list">
+                      {applicantList.slice(-5).reverse().map((a, i) => (
+                        <div key={i} className="recent-app-item">
+                          <div className="recent-app-logo" style={{ background: '#0A65CC' }}>{(a.name || 'A')[0]}</div>
+                          <div className="recent-app-info"><h4>{a.name}</h4><p>{a.role} · {a.applied}</p></div>
+                          <span className={`app-status ${a.status?.toLowerCase()}`}>{a.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="dash-panel">
+                  <h3>Quick Actions</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <button onClick={() => setSection('company')} style={{ padding: '12px 14px', background: '#F7F8FC', border: '1px solid #E4E5E8', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#0A65CC', textAlign: 'left' }}>🏢 Manage Company Profile</button>
+                    <button onClick={() => setSection('postJob')} style={{ padding: '12px 14px', background: '#F7F8FC', border: '1px solid #E4E5E8', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#0A65CC', textAlign: 'left' }}>📝 Post a New Job</button>
+                    <button onClick={() => setSection('myJobs')} style={{ padding: '12px 14px', background: '#F7F8FC', border: '1px solid #E4E5E8', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#0A65CC', textAlign: 'left' }}>📋 View All Jobs</button>
+                    <button onClick={() => setSection('applicants')} style={{ padding: '12px 14px', background: '#F7F8FC', border: '1px solid #E4E5E8', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#0A65CC', textAlign: 'left' }}>👥 View Applicants</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RECRUITER - COMPANY PROFILE */}
+          {isRecruiterRole && section === 'company' && (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', padding: 24 }}>
+              <h3 style={{ fontFamily: 'Jost', fontSize: 20, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Company Profile</h3>
+              {companyData ? (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Name</label>
+                      <div style={{ padding: '12px 14px', background: '#F7F8FC', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, color: '#18191C' }}>{companyData.name}</div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Location</label>
+                      <div style={{ padding: '12px 14px', background: '#F7F8FC', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, color: '#18191C' }}>📍 New York, USA</div>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Description</label>
+                    <div style={{ padding: '12px 14px', background: '#F7F8FC', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, color: '#18191C', minHeight: 80 }}>{companyData.description}</div>
+                  </div>
+                  <button onClick={() => { setCompanyData(null); setCompanyForm({ name: companyData.name, description: companyData.description }); }} style={{ padding: '10px 18px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Edit Company</button>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ color: '#767F8C', marginBottom: 20 }}>Set up your company profile to start posting jobs</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Name *</label>
+                      <input value={companyForm.name} onChange={e => setCompanyForm(f => ({ ...f, name: e.target.value }))} placeholder="Your company name" style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }} />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Company Description *</label>
+                    <textarea value={companyForm.description} onChange={e => setCompanyForm(f => ({ ...f, description: e.target.value }))} placeholder="Tell us about your company..." style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none', minHeight: 120, resize: 'vertical' }} />
+                  </div>
+                  <button onClick={handleCreateCompany} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Create Company Profile</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* RECRUITER - POST JOB */}
+          {isRecruiterRole && section === 'postJob' && (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', padding: 24 }}>
+              <h3 style={{ fontFamily: 'Jost', fontSize: 20, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Post a New Job</h3>
+              {!companyData ? (
+                <div style={{ padding: 20, background: '#FEF3C7', borderRadius: 8, color: '#92400E', fontFamily: 'Mulish', fontSize: 14 }}>⚠️ Please create a company profile first before posting jobs. <button onClick={() => setSection('company')} style={{ marginTop: 10, padding: '8px 16px', background: '#F59E0B', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Go to Company Profile</button></div>
+              ) : (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Job Title *</label>
+                      <input value={jobForm.title} onChange={e => setJobForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Senior React Developer" style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Job Type *</label>
+                      <select value={jobForm.jobType} onChange={e => setJobForm(f => ({ ...f, jobType: e.target.value }))} style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }}>
+                        <option>Full-Time</option>
+                        <option>Part-Time</option>
+                        <option>Contract</option>
+                        <option>Internship</option>
+                        <option>Remote</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ display: 'block', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600, color: '#18191C', marginBottom: 8 }}>Job Description *</label>
+                    <textarea value={jobForm.description} onChange={e => setJobForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the job role, responsibilities, and requirements..." style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none', minHeight: 140, resize: 'vertical' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={handlePostJob} style={{ padding: '11px 20px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Post Job</button>
+                    <button onClick={() => { setJobForm({ title: '', description: '', jobType: 'Full-Time' }); }} style={{ padding: '11px 20px', background: 'transparent', color: '#0A65CC', border: '1.5px solid #0A65CC', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 14, fontWeight: 600 }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* RECRUITER - MY JOBS */}
+          {isRecruiterRole && section === 'myJobs' && (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflow: 'hidden' }}>
+              <div style={{ padding: 24, borderBottom: '1px solid #EBEBF0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>My Jobs ({myJobs.length})</h3>
+                <button onClick={() => setSection('postJob')} style={{ padding: '8px 16px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600 }}>+ Post New Job</button>
+              </div>
+              {myJobs.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>No jobs posted yet. Start by posting your first job!</div>
+              ) : (
+                <table className="app-table">
+                  <thead><tr><th>Job Title</th><th>Posted</th><th>Applicants</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {myJobs.map((j, i) => (
+                      <tr key={i}>
+                        <td><strong>{j.title}</strong></td>
+                        <td>{j.posted}</td>
+                        <td><span style={{ fontWeight: 600, color: '#0A65CC' }}>{j.applicants}</span></td>
+                        <td><span className={`app-status ${j.status?.toLowerCase()}`}>{j.status}</span></td>
+                        <td><button onClick={() => toast('Editing job...', 'info')} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>Edit</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* RECRUITER - APPLICANTS */}
+          {isRecruiterRole && section === 'applicants' && (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflow: 'hidden' }}>
+              <div style={{ padding: 24, borderBottom: '1px solid #EBEBF0' }}>
+                <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>Applicants ({applicantList.length})</h3>
+              </div>
+              {applicantList.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>No applicants yet.</div>
+              ) : (
+                <table className="app-table">
+                  <thead><tr><th>Candidate</th><th>Role Applied</th><th>Match Score</th><th>Status</th><th>Applied</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {applicantList.map((a, i) => (
+                      <tr key={i}>
+                        <td><strong>{a.name}</strong></td>
+                        <td>{a.role}</td>
+                        <td><span style={{ fontWeight: 600, color: '#0A65CC' }}>{a.match}</span></td>
+                        <td><span className={`app-status ${a.status?.toLowerCase()}`}>{a.status}</span></td>
+                        <td>{a.applied}</td>
+                        <td style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => toast(`Viewing ${a.name}'s profile...`, 'info')} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>View</button>
+                          <button onClick={() => { setApplicantList(al => al.map(x => x.id === a.id ? { ...x, status: 'Interviewed' } : x)); toast(`Moved ${a.name} to Interviewed`, 'success'); }} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>Interview</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
           {/* RECRUITERS */}
-          {section === 'recruiters' && (
+          {!isRecruiterRole && section === 'recruiters' && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>Top Recruiters</h3>
@@ -739,7 +1076,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* CANDIDATES */}
-          {section === 'candidates' && (
+          {!isRecruiterRole && section === 'candidates' && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>Browse Candidates</h3>
@@ -760,7 +1097,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* BLOG */}
-          {section === 'blog' && (
+          {!isRecruiterRole && section === 'blog' && (
             <div>
               <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Blog</h3>
               <div className="blog-grid">
@@ -799,7 +1136,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* NEWS */}
-          {section === 'news' && (
+          {!isRecruiterRole && section === 'news' && (
             <div>
               <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Career &amp; Industry News</h3>
               <div className="news-grid">

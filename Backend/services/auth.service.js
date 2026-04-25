@@ -12,8 +12,11 @@ exports.signup = async (req, res) => {
   const roleAliases = {
     jobseeker: "student",
     student: "student",
-    recruiter: "recuteir",
-    recuteir: "recuteir",
+    recruiter: "recruiter",
+    recuteir: "recruiter",
+    recuiter: "recruiter",
+    recurieter: "recruiter",
+    recuriecter: "recruiter",
   };
 
   const normalizedRole = roleAliases[String(role || "").toLowerCase()];
@@ -23,7 +26,7 @@ exports.signup = async (req, res) => {
   }
 
   if (!normalizedRole) {
-    return res.status(400).json({ error: "Invalid role. Allowed: student or recuteir" });
+    return res.status(400).json({ error: "Invalid role. Allowed: student or recruiter" });
   }
 
   try {
@@ -97,7 +100,12 @@ exports.login = (req, res) => {
 
       return res.json({
         message: "Login successful",
-        token
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        }
       });
     }
   );

@@ -7,3 +7,7 @@ exports.applyJob = (req, res) => {
 exports.getApplications = (req, res) => {
   service.getApplications(req, res);
 };
+
+exports.getRecruiterApplications = (req, res) => {
+  service.getRecruiterApplications(req, res);
+};

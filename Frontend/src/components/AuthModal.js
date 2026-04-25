@@ -210,7 +210,7 @@ export default function AuthModal({ open, tab, onClose, onLogin }) {
                 }}
               >
                 <option value="student">Job Seeker (Student)</option>
-                <option value="recuteir">Recruiter / Employer</option>
+                <option value="recruiter">Recruiter / Employer</option>
               </select>
               {suErrors.role && <div className="auth-error-msg">{suErrors.role}</div>}
             </div>
