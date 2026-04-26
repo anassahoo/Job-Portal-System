@@ -1,19 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from './Toast';
 
-export default function ApplyModal({ open, job, onClose, onSubmit }) {
+export default function ApplyModal({ open, job, onClose, onSubmit, prefill = {} }) {
   const [fname, setFname] = useState('');
   const [lname, setLname] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [exp, setExp] = useState('');
   const [cover, setCover] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
+
+  useEffect(() => {
+    if (!open || !job) return;
+
+    setFname(prefill.first_name || prefill.fname || '');
+    setLname(prefill.last_name || prefill.lname || '');
+    setEmail(prefill.email || '');
+    setPhone(prefill.phone || '');
+    setExp(prefill.experience || '');
+    setCover('');
+    setResumeFile(null);
+  }, [open, job, prefill]);
 
   if (!open || !job) return null;
 
   function submit() {
-    if (!fname || !email) { toast('Please fill in required fields.', 'error'); return; }
-    onSubmit({ ...job, fname, lname, email, phone, exp, cover, status: 'Pending', appliedAt: new Date().toLocaleDateString() });
+    if (!fname || !lname || !email || !phone) { toast('Please complete your profile details first.', 'error'); return; }
+    if (!resumeFile) { toast('Please upload your resume.', 'error'); return; }
+    onSubmit({ ...job, fname, lname, email, phone, exp, cover, resumeFile, status: 'Pending', appliedAt: new Date().toLocaleDateString() });
     toast(`Application submitted for "${job.title}"!`, 'success');
     onClose();
   }
@@ -47,6 +61,14 @@ export default function ApplyModal({ open, job, onClose, onSubmit }) {
               <option>0–1 years</option><option>1–3 years</option><option>3–5 years</option><option>5–10 years</option><option>10+ years</option>
             </select>
           </div>
+        </div>
+        <div className="apply-field">
+          <label>Resume (PDF/DOC/DOCX)</label>
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={e => setResumeFile(e.target.files?.[0] || null)}
+          />
         </div>
         <div className="apply-field"><label>Cover Letter</label><textarea value={cover} onChange={e => setCover(e.target.value)} placeholder="Tell us why you're a great fit..." /></div>
         <button className="apply-submit" onClick={submit}>Submit Application →</button>

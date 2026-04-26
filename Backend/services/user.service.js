@@ -36,6 +36,35 @@ exports.getProfile = (req, res) => {
   );
 };
 
+// =====================
+// GET CANDIDATES DIRECTORY
+// =====================
+exports.getCandidates = (req, res) => {
+  db.query(
+    `SELECT
+      a.id,
+      a.email,
+      p.first_name,
+      p.last_name,
+      p.professional_title,
+      p.location,
+      p.bio,
+      p.profile_image,
+      GROUP_CONCAT(DISTINCT s.skill_name ORDER BY s.skill_name SEPARATOR ', ') AS skills
+     FROM auth_users a
+     LEFT JOIN user_profiles p ON a.id = p.user_id
+     LEFT JOIN user_skills us ON a.id = us.user_id
+     LEFT JOIN skills s ON us.skill_id = s.id
+     WHERE LOWER(a.role) = 'student'
+     GROUP BY a.id, a.email, p.first_name, p.last_name, p.professional_title, p.location, p.bio, p.profile_image
+     ORDER BY a.id DESC`,
+    (err, result) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      return res.json(result);
+    }
+  );
+};
+
 
 
 // =====================

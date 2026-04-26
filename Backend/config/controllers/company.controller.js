@@ -8,6 +8,10 @@ exports.getCompanies = (req, res) => {
   companyService.getCompanies(req, res);
 };
 
+exports.getRecruiters = (req, res) => {
+  companyService.getRecruiters(req, res);
+};
+
 exports.getCompanyById = (req, res) => {
   companyService.getCompanyById(req, res);
 };

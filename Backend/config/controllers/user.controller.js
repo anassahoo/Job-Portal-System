@@ -4,6 +4,10 @@ exports.getProfile = (req, res) => {
   userService.getProfile(req, res);
 };
 
+exports.getCandidates = (req, res) => {
+  userService.getCandidates(req, res);
+};
+
 exports.updateProfile = (req, res) => {
   userService.updateProfile(req, res);
 };

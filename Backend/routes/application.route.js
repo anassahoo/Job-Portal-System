@@ -7,5 +7,6 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.post("/apply", authMiddleware, controller.applyJob);
 router.get("/", authMiddleware, controller.getApplications);
 router.get("/recruiter", authMiddleware, controller.getRecruiterApplications);
+router.put("/:id/status", authMiddleware, controller.updateApplicationStatus);
 
 module.exports = router;

@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { JOBS_DATA, RECRUITERS, CANDIDATES, MESSAGES } from '../data';
+import { MESSAGES } from '../data';
 import { toast } from './Toast';
 import ApplyModal from './ApplyModal';
 import jobBoxIcon from '../assets/brand/jobbox-icon.jpg';
 import welcomeBackImage from '../assets/dashboard/welcome-back.webp';
 import { updateStoredSessionUser } from '../API/authApi';
-import { getMyProfile, getProfileImageUrl, updateMyAccount, updateMyProfile, uploadMyProfileImage } from '../API/userAPI';
+import { getMyProfile, getProfileImageUrl, getResumeFileUrl, updateMyAccount, updateMyProfile, uploadMyProfileImage } from '../API/userAPI';
+import { addSkill, getAllSkills as getAllStudentSkills, getMySkills, removeSkill } from '../API/skillApi';
+import {
+  applyToJob,
+  getCandidatesForJobSeeker,
+  getJobsForJobSeeker,
+  getMyApplicationsForJobSeeker,
+  getRecruitersForJobSeeker,
+  uploadResumeForJobSeeker,
+} from '../API/jobSeekerApi';
 import {
   addJobSkill,
   createCompany,
@@ -15,6 +24,7 @@ import {
   getMyCompany,
   getMyJobs,
   getRecruiterApplications,
+  updateRecruiterApplicationStatus,
   updateJob,
   updateMyCompany,
 } from '../API/recruiterApi';
@@ -162,21 +172,42 @@ const COUNTRY_PHONE_CODES = [
   { code: '+33', label: 'France (+33)' },
 ];
 
+function getApplicationStatusMeta(rawStatus) {
+  const normalized = String(rawStatus || '').trim().toLowerCase();
+  const statusMap = {
+    pending: { key: 'pending', label: 'Pending' },
+    interview: { key: 'interview', label: 'Interview' },
+    interviewed: { key: 'interview', label: 'Interview' },
+    rejected: { key: 'rejected', label: 'Rejected' },
+    offer: { key: 'offered', label: 'Offered' },
+    offered: { key: 'offered', label: 'Offered' },
+  };
+
+  return statusMap[normalized] || { key: 'pending', label: 'Pending' };
+}
+
 export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, savedJobs, applications, onSaveJob, onRemoveSaved }) {
   const [section, setSection] = useState('home');
   const [topSearch, setTopSearch] = useState('');
   const [jobKw, setJobKw] = useState('');
   const [jobLoc, setJobLoc] = useState('');
   const [jobType, setJobType] = useState('');
-  const [filteredJobs, setFilteredJobs] = useState(JOBS_DATA);
+  const [allJobs, setAllJobs] = useState([]);
+  const [filteredJobs, setFilteredJobs] = useState([]);
+  const [myApplications, setMyApplications] = useState([]);
+  const [directoryRecruiters, setDirectoryRecruiters] = useState([]);
+  const [directoryCandidates, setDirectoryCandidates] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [applyJob, setApplyJob] = useState(null);
   const [settingsPanel, setSettingsPanel] = useState('profile');
   const [msgActive, setMsgActive] = useState(0);
   const [msgInput, setMsgInput] = useState('');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const accountMenuRef = useRef(null);
+  const notificationMenuRef = useRef(null);
   const profileFileInputRef = useRef(null);
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const [chatHistory, setChatHistory] = useState([
     { type: 'recv', text: "Hi! We reviewed your application and would like to schedule an interview. Are you available this week?", time: '10:30 AM' },
     { type: 'sent', text: "That sounds great! I'm available Tuesday or Thursday afternoon.", time: '10:45 AM' },
@@ -208,8 +239,6 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     messages: 'Messages',
     recruiters: 'Recruiters',
     candidates: 'Candidates',
-    blog: 'Blog',
-    news: 'News',
     settings: 'Settings',
     // Recruiter sections
     recHome: 'Dashboard',
@@ -229,11 +258,20 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
   const [availableSkills, setAvailableSkills] = useState([]);
   const [isEditingCompany, setIsEditingCompany] = useState(false);
   const [editingJobId, setEditingJobId] = useState(null);
+  const recruiterPendingCount = applicantList.length;
+  const [jobSeekerSkills, setJobSeekerSkills] = useState([]);
+  const [jobSeekerSkillCatalog, setJobSeekerSkillCatalog] = useState([]);
+  const [selectedSkillId, setSelectedSkillId] = useState('');
+  const [applyPrefill, setApplyPrefill] = useState({});
 
   useEffect(() => {
     function closeAccountMenu(event) {
       if (!accountMenuRef.current?.contains(event.target)) {
         setAccountMenuOpen(false);
+      }
+
+      if (!notificationMenuRef.current?.contains(event.target)) {
+        setNotificationOpen(false);
       }
     }
 
@@ -263,6 +301,14 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           title: profile.professional_title || '',
           location: profile.location || '',
           bio: profile.bio || '',
+        });
+
+        setApplyPrefill({
+          first_name: profile.first_name || user.fname || '',
+          last_name: profile.last_name || user.lname || '',
+          email: profile.email || user.email || '',
+          phone: profile.phone || '',
+          experience: '',
         });
 
         setAccountEmail(profile.email || user.email || '');
@@ -325,23 +371,46 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 id: j.id,
                 title: j.title,
                 description: j.description || '',
-                company: j.company_name || companyData?.name || 'Company',
+                company: j.company_name || myCompany?.name || 'Company',
                 posted: `Job #${j.id}`,
                 applicants: Number(j.applicants_count || 0),
                 status: 'Active',
+                requiredSkills: j.required_skills || '',
               }))
           : [];
         setMyJobs(mappedJobs);
 
         const mappedApplicants = Array.isArray(applicants)
           ? applicants.map(a => ({
+              const statusMeta = getApplicationStatusMeta(a.status);
+
+              return {
               id: a.id,
-              name: a.applicant_email || `Candidate #${a.user_id}`,
+              userId: a.user_id,
+              name: [a.first_name, a.last_name].filter(Boolean).join(' ') || a.applicant_email || `Candidate #${a.user_id}`,
+              email: a.applicant_email || '',
+              phone: a.phone || '',
               role: a.job_title || 'Applied Role',
+              company: a.company_name || companyData?.name || 'Company',
               match: `${a.match_percentage || 0}%`,
-              status: a.status || 'Pending',
+              status: statusMeta.label,
               applied: `Application #${a.id}`,
-            }))
+              title: a.professional_title || 'Not provided',
+              location: a.location || 'Not provided',
+              bio: a.bio || 'No profile bio available.',
+              profileImage: a.profile_image || '',
+              resumeFile: a.resume_file || '',
+              experience: a.experience || 'Not provided',
+              coverLetter: a.cover_letter || 'No cover letter shared.',
+              skills: String(a.skills || '')
+                .split(',')
+                .map(skill => skill.trim())
+                .filter(Boolean),
+              prediction: a.prediction || 'Pending Review',
+              resumeScore: a.resume_score ?? 0,
+              projectScore: a.project_score ?? 0,
+              };
+            })
           : [];
         setApplicantList(mappedApplicants);
 
@@ -352,6 +421,130 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     }
 
     loadRecruiterData();
+  }, [isRecruiterRole]);
+
+  useEffect(() => {
+    async function loadJobSeekerData() {
+      if (isRecruiterRole) return;
+
+      try {
+        const [jobs, recruiters, candidates, apps] = await Promise.all([
+          getJobsForJobSeeker(),
+          getRecruitersForJobSeeker(),
+          getCandidatesForJobSeeker(),
+          getMyApplicationsForJobSeeker(),
+        ]);
+        const [skills, mySkills] = await Promise.all([
+          getAllStudentSkills().catch(() => []),
+          getMySkills().catch(() => []),
+        ]);
+
+        const normalizedJobs = Array.isArray(jobs)
+          ? jobs.map(j => ({
+              id: j.id,
+              title: j.title,
+              company: j.company_name || 'Company',
+              image: j.company_logo ? getProfileImageUrl(j.company_logo) : '',
+              companyLogo: j.company_logo ? getProfileImageUrl(j.company_logo) : '',
+              location: j.location || 'Remote',
+              type: j.type || 'Full-Time',
+              tags: String(j.required_skills || j.tags || '')
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(Boolean),
+              salary: j.salary || 'Competitive',
+              description: j.description || '',
+              category: (j.title || '').toLowerCase(),
+              remote: String(j.location || '').toLowerCase().includes('remote'),
+            }))
+          : [];
+
+        const normalizedRecruiters = Array.isArray(recruiters)
+          ? recruiters.map(r => ({
+              name: r.company_name || 'Recruiter',
+              company: r.company_name || 'Company',
+              jobs: Number(r.jobs_posted || 0),
+              rating: '4.8',
+              color: '#0A65CC',
+              logo: r.logo || '',
+            }))
+          : [];
+
+        const normalizedCandidates = Array.isArray(candidates)
+          ? candidates.map(c => ({
+              initials: `${(c.first_name || c.email || 'C')[0]}${(c.last_name || '')[0] || ''}`.toUpperCase(),
+              name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
+              role: c.professional_title || 'Candidate',
+              email: c.email || '',
+              location: c.location || '',
+              bio: c.bio || '',
+              skills: String(c.skills || '')
+                .split(',')
+                .map(skill => skill.trim())
+                .filter(Boolean),
+              profileImage: c.profile_image || '',
+              color: '#0A65CC',
+            }))
+          : [];
+
+        const normalizedApps = Array.isArray(apps)
+          ? apps.map(a => ({
+              const statusMeta = getApplicationStatusMeta(a.status);
+
+              return {
+              id: a.id,
+              jobId: a.job_id,
+              title: a.job_title || 'Job',
+              company: a.company_name || 'Company',
+              status: statusMeta.label,
+              appliedAt: `Application #${a.id}`,
+              };
+            })
+          : [];
+
+        setAllJobs(normalizedJobs);
+        setFilteredJobs(normalizedJobs);
+        setDirectoryRecruiters(normalizedRecruiters);
+        setDirectoryCandidates(normalizedCandidates);
+        setMyApplications(normalizedApps);
+        setJobSeekerSkillCatalog(Array.isArray(skills) ? skills : []);
+        setJobSeekerSkills(Array.isArray(mySkills) ? mySkills : []);
+      } catch (error) {
+        toast(error.message || 'Failed to load job seeker data', 'error');
+      }
+    }
+
+    loadJobSeekerData();
+  }, [isRecruiterRole]);
+
+  useEffect(() => {
+    if (isRecruiterRole) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        const apps = await getMyApplicationsForJobSeeker();
+        const normalizedApps = Array.isArray(apps)
+          ? apps.map(a => ({
+              const statusMeta = getApplicationStatusMeta(a.status);
+
+              return {
+              id: a.id,
+              jobId: a.job_id,
+              title: a.job_title || 'Job',
+              company: a.company_name || 'Company',
+              status: statusMeta.label,
+              appliedAt: `Application #${a.id}`,
+              };
+            })
+          : [];
+
+        setMyApplications(normalizedApps);
+      } catch {
+        // keep existing local state if refresh fails
+      }
+    }, 15000);
+
+    return () => clearInterval(refreshInterval);
   }, [isRecruiterRole]);
 
   async function handleSaveCompany() {
@@ -407,7 +600,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
       title: job.title || '',
       description: job.description || '',
       jobType: 'Full-Time',
-      requiredSkills: '',
+      requiredSkills: job.requiredSkills || job.required_skills || '',
     });
     setSection('postJob');
   }
@@ -418,17 +611,41 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
       return;
     }
 
-    if (!companyId) {
+    if (!companyId && !editingJobId) {
       toast('Please create a company profile first.', 'error');
       return;
     }
 
     try {
+      const skillTokens = String(jobForm.requiredSkills || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      const normalizedMap = new Map(
+        availableSkills.map(s => [String(s.skill_name || '').trim().toLowerCase(), s.id])
+      );
+
+      const skillIds = [];
+      for (const skillName of skillTokens) {
+        const key = skillName.toLowerCase();
+        if (normalizedMap.has(key)) {
+          skillIds.push(normalizedMap.get(key));
+          continue;
+        }
+
+        const created = await createSkill({ skill_name: skillName });
+        if (created?.skill_id) {
+          skillIds.push(created.skill_id);
+          normalizedMap.set(key, created.skill_id);
+        }
+      }
+
       let result = null;
       if (editingJobId) {
         await updateJob(editingJobId, {
           title: jobForm.title.trim(),
           description: jobForm.description.trim(),
+          skill_ids: skillIds,
         });
       } else {
         result = await createJob({
@@ -436,43 +653,16 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           description: jobForm.description.trim(),
           company_id: companyId,
         });
-      }
 
-      const skillTokens = String(jobForm.requiredSkills || '')
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
-
-      if (skillTokens.length > 0) {
-        const normalizedMap = new Map(
-          availableSkills.map(s => [String(s.skill_name || '').trim().toLowerCase(), s.id])
-        );
-
-        const skillIds = [];
-        for (const skillName of skillTokens) {
-          const key = skillName.toLowerCase();
-          if (normalizedMap.has(key)) {
-            skillIds.push(normalizedMap.get(key));
-            continue;
-          }
-
-          const created = await createSkill({ skill_name: skillName });
-          if (created?.skill_id) {
-            skillIds.push(created.skill_id);
-            normalizedMap.set(key, created.skill_id);
-          }
-        }
-
-        if (skillIds.length > 0 && (result?.job_id || editingJobId)) {
-          const targetJobId = result?.job_id || editingJobId;
-          await Promise.all(skillIds.map(skillId => addJobSkill({ job_id: targetJobId, skill_id: skillId })));
+        if (skillIds.length > 0 && result?.job_id) {
+          await Promise.all(skillIds.map(skillId => addJobSkill({ job_id: result.job_id, skill_id: skillId })));
         }
       }
 
       if (editingJobId) {
         setMyJobs(prev => prev.map(j => (
           j.id === editingJobId
-            ? { ...j, title: jobForm.title.trim(), description: jobForm.description.trim() }
+            ? { ...j, title: jobForm.title.trim(), description: jobForm.description.trim(), requiredSkills: skillTokens.join(', ') }
             : j
         )));
       } else {
@@ -485,6 +675,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
             posted: 'Just now',
             applicants: 0,
             status: 'Active',
+            requiredSkills: skillTokens.join(', '),
           },
           ...prev,
         ]);
@@ -503,7 +694,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     const kw = (jobKw || topSearch).toLowerCase();
     const lc = jobLoc.toLowerCase();
     const tp = jobType.toLowerCase();
-    setFilteredJobs(JOBS_DATA.filter(j => {
+    setFilteredJobs(allJobs.filter(j => {
       const matchKw = !kw || j.title.toLowerCase().includes(kw) || j.company.toLowerCase().includes(kw) || j.tags.some(t => t.toLowerCase().includes(kw)) || j.category.includes(kw);
       const matchLoc = !lc || j.location.toLowerCase().includes(lc) || (lc === 'remote' && j.remote);
       const matchType = !tp || j.type.toLowerCase().includes(tp);
@@ -512,7 +703,130 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     setSection('find');
   }
 
+  async function handleJobSeekerApply(applicationPayload) {
+    try {
+      const alreadyApplied = myApplications.some(app => String(app.jobId) === String(applicationPayload.id));
+      if (alreadyApplied) {
+        toast('You already applied for this job.', 'error');
+        return;
+      }
+
+      if (applicationPayload?.resumeFile) {
+        await uploadResumeForJobSeeker(applicationPayload.resumeFile, {
+          first_name: applicationPayload.fname,
+          last_name: applicationPayload.lname,
+          email: applicationPayload.email,
+          phone: applicationPayload.phone,
+          experience: applicationPayload.exp,
+          cover_letter: applicationPayload.cover,
+        });
+      }
+
+      await applyToJob({ job_id: applicationPayload.id });
+      const apps = await getMyApplicationsForJobSeeker();
+      const normalizedApps = Array.isArray(apps)
+        ? apps.map(a => ({
+            const statusMeta = getApplicationStatusMeta(a.status);
+
+            return {
+            id: a.id,
+            title: a.job_title || applicationPayload.title || 'Job',
+            company: a.company_name || applicationPayload.company || 'Company',
+            status: statusMeta.label,
+            appliedAt: `Application #${a.id}`,
+            };
+          })
+        : [];
+      setMyApplications(normalizedApps);
+
+      if (typeof onApply === 'function') {
+        onApply(applicationPayload);
+      }
+
+      setApplyPrefill(prev => ({
+        ...prev,
+        first_name: applicationPayload.fname,
+        last_name: applicationPayload.lname,
+        email: applicationPayload.email,
+        phone: applicationPayload.phone,
+        experience: applicationPayload.exp,
+      }));
+    } catch (error) {
+      toast(error.message || 'Failed to apply for job', 'error');
+    }
+  }
+
+  async function handleAddSkill() {
+    if (!selectedSkillId) {
+      toast('Please select a skill.', 'error');
+      return;
+    }
+
+    try {
+      await addSkill(selectedSkillId);
+      const refreshed = await getMySkills();
+      setJobSeekerSkills(Array.isArray(refreshed) ? refreshed : []);
+      setSelectedSkillId('');
+      toast('Skill added successfully!', 'success');
+    } catch (error) {
+      toast(error.message || 'Failed to add skill', 'error');
+    }
+  }
+
+  async function handleRemoveSkill(skillId) {
+    try {
+      await removeSkill(skillId);
+      setJobSeekerSkills(prev => prev.filter(skill => skill.id !== skillId));
+      toast('Skill removed successfully!', 'info');
+    } catch (error) {
+      toast(error.message || 'Failed to remove skill', 'error');
+    }
+  }
+
   function openJobModal(job) { setSelectedJob(job); }
+
+  async function handleRecruiterStatusChange(applicationId, nextStatus, candidateName) {
+    try {
+      const result = await updateRecruiterApplicationStatus(applicationId, nextStatus);
+      const normalized = getApplicationStatusMeta(result?.status || nextStatus).label;
+      setApplicantList(prev => prev.map(a => (a.id === applicationId ? { ...a, status: normalized } : a)));
+      setSelectedProfile(prev => {
+        if (!prev || prev.type !== 'application' || prev.data?.id !== applicationId) return prev;
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            status: normalized,
+          },
+        };
+      });
+      toast(`${candidateName} marked as ${normalized}.`, 'success');
+    } catch (error) {
+      toast(error.message || 'Failed to update candidate status', 'error');
+    }
+  }
+
+  const notificationItems = isRecruiterRole
+    ? applicantList.slice(0, 6).map(applicant => ({
+        const statusMeta = getApplicationStatusMeta(applicant.status);
+
+        return {
+        id: `app-${applicant.id}`,
+        title: statusMeta.label === 'Pending' ? 'New application received' : `Application ${statusMeta.label.toLowerCase()}`,
+        detail: `${applicant.name} · ${applicant.role}`,
+        tone: statusMeta.label === 'Pending' ? 'success' : 'info',
+        };
+      })
+    : myApplications.slice(0, 6).map(application => ({
+        const statusMeta = getApplicationStatusMeta(application.status);
+
+        return {
+        id: `my-${application.id}`,
+        title: `Application ${statusMeta.label.toLowerCase()}`,
+        detail: `${application.title} · ${application.company}`,
+        tone: statusMeta.label === 'Rejected' ? 'error' : 'info',
+        };
+      });
 
   function sendMessage() {
     if (!msgInput.trim()) return;
@@ -690,12 +1004,10 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
     { key: 'home', icon: 'home', label: 'Home' },
     { key: 'find', icon: 'find', label: 'Find a Job' },
     { key: 'saved', icon: 'saved', label: 'Saved Jobs', badge: savedJobs.length },
-    { key: 'applications', icon: 'applications', label: 'Applications', badge: applications.length },
+    { key: 'applications', icon: 'applications', label: 'Applications', badge: myApplications.length },
     { key: 'messages', icon: 'messages', label: 'Messages', badge: 3 },
     { key: 'recruiters', icon: 'recruiters', label: 'Recruiters' },
     { key: 'candidates', icon: 'candidates', label: 'Candidates' },
-    { key: 'blog', icon: 'blog', label: 'Blog' },
-    { key: 'news', icon: 'news', label: 'News' },
     { key: 'settings', icon: 'settings', label: 'Settings' },
   ];
 
@@ -748,7 +1060,29 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9199A3" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
               <input placeholder="Search jobs..." value={topSearch} onChange={e => setTopSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && doJobSearch()} />
             </div>
-            <div className="topbar-icon-btn" onClick={() => toast('No new notifications', 'info')}>🔔<span className="topbar-dot" /></div>
+            <div className="topbar-icon-wrap" ref={notificationMenuRef}>
+              <div className="topbar-icon-btn" onClick={() => setNotificationOpen(v => !v)}>
+                🔔
+                <span className="topbar-dot" />
+                {notificationItems.length > 0 ? <span className="topbar-badge">{notificationItems.length}</span> : null}
+              </div>
+              {notificationOpen && (
+                <div className="topbar-notification-menu">
+                  <div className="topbar-notification-head">
+                    <strong>Notifications</strong>
+                    <span>{notificationItems.length} updates</span>
+                  </div>
+                  {notificationItems.length === 0 ? (
+                    <div className="topbar-notification-empty">No new notifications</div>
+                  ) : notificationItems.map(item => (
+                    <div key={item.id} className={`topbar-notification-item ${item.tone}`}>
+                      <div className="topbar-notification-title">{item.title}</div>
+                      <div className="topbar-notification-detail">{item.detail}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="topbar-user-wrap" ref={accountMenuRef}>
               <button className={`topbar-user${accountMenuOpen ? ' open' : ''}`} onClick={() => setAccountMenuOpen(v => !v)}>
                 <span className="topbar-avatar">
@@ -793,24 +1127,24 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 <div className="welcome-banner-content">
                   <div className="welcome-slide-bar" aria-hidden="true" />
                   <h2>Welcome back, {displayName}!</h2>
-                  <p>You have {applications.length} active applications. Keep applying to increase your chances!</p>
+                  <p>You have {myApplications.length} active applications. Keep applying to increase your chances!</p>
                 </div>
               </div>
               <div className="dash-stats-row">
-                <div className="dash-stat-card"><h4>Total Applied</h4><div className="num">{applications.length}</div><div className="change">↑ {applications.length} total applied</div></div>
+                <div className="dash-stat-card"><h4>Total Applied</h4><div className="num">{myApplications.length}</div><div className="change">↑ {myApplications.length} total applied</div></div>
                 <div className="dash-stat-card"><h4>Saved Jobs</h4><div className="num">{savedJobs.length}</div><div className="change">Jobs bookmarked</div></div>
-                <div className="dash-stat-card"><h4>Interviews</h4><div className="num">{applications.filter(a => a.status === 'Interview').length}</div><div className="change">Scheduled</div></div>
+                <div className="dash-stat-card"><h4>Interviews</h4><div className="num">{myApplications.filter(a => getApplicationStatusMeta(a.status).key === 'interview').length}</div><div className="change">Scheduled</div></div>
               </div>
               <div className="dash-two-col">
                 <div className="dash-panel">
                   <h3>Recent Applications</h3>
-                  {applications.length === 0 ? <div style={{ color: '#9CA3AF', fontSize: 13 }}>No applications yet. Start applying!</div> : (
+                  {myApplications.length === 0 ? <div style={{ color: '#9CA3AF', fontSize: 13 }}>No applications yet. Start applying!</div> : (
                     <div className="recent-apps-list">
-                      {applications.slice(-5).reverse().map((a, i) => (
+                      {myApplications.slice(-5).reverse().map((a, i) => (
                         <div key={i} className="recent-app-item">
                           <div className="recent-app-logo" style={{ background: a.color || '#0A65CC' }}>{(a.company || 'C')[0]}</div>
                           <div className="recent-app-info"><h4>{a.title}</h4><p>{a.company} · {a.appliedAt}</p></div>
-                          <span className={`app-status ${a.status?.toLowerCase()}`}>{a.status}</span>
+                          <span className={`app-status ${getApplicationStatusMeta(a.status).key}`}>{getApplicationStatusMeta(a.status).label}</span>
                         </div>
                       ))}
                     </div>
@@ -819,9 +1153,31 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 <div className="dash-panel">
                   <h3>Recommended Jobs</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {JOBS_DATA.slice(0, 4).map(j => (
+                    {allJobs.slice(0, 4).map(j => (
                       <div key={j.id} style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '1px solid #F0F0F5', cursor: 'pointer' }} onClick={() => { setSection('find'); openJobModal(j); }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 8, background: j.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 13 }}>{j.company[0]}</div>
+                        <div style={j.companyLogo ? {
+                          width: 34,
+                          height: 34,
+                          borderRadius: 8,
+                          backgroundImage: `url(${j.companyLogo})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          border: '1px solid #E4E5E8',
+                          flexShrink: 0,
+                        } : {
+                          width: 34,
+                          height: 34,
+                          borderRadius: 8,
+                          background: j.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontWeight: 800,
+                          fontSize: 13,
+                          flexShrink: 0,
+                        }}>{j.companyLogo ? null : j.company[0]}</div>
                         <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 700, color: '#18191C' }}>{j.title}</div><div style={{ fontSize: 11, color: '#767F8C' }}>{j.company} · {j.salary}</div></div>
                       </div>
                     ))}
@@ -849,14 +1205,14 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
               <div className="jobie-jobs-grid">
                 {filteredJobs.map(j => (
                   <div key={j.id} className="jobie-job-card" onClick={() => openJobModal(j)}>
-                    {j.image ? (
+                    {j.image && String(j.image).trim() ? (
                       <div className="jjc-media">
                         <img src={j.image} alt={`${j.title} role`} />
                         <div className={`jjc-bookmark jjc-bookmark-media${savedJobs.find(s => s.id === j.id) ? ' saved' : ''}`} onClick={e => { e.stopPropagation(); onSaveJob(j); }}>🔖</div>
                       </div>
                     ) : (
                       <div className="jjc-header">
-                        <div className="jjc-logo" style={{ background: j.color }}>{j.company[0]}</div>
+                        <div className="jjc-logo" style={{ background: j.color || '#0A65CC' }}>{(j.company || 'C')[0]}</div>
                         <div className={`jjc-bookmark${savedJobs.find(s => s.id === j.id) ? ' saved' : ''}`} onClick={e => { e.stopPropagation(); onSaveJob(j); }}>🔖</div>
                       </div>
                     )}
@@ -916,19 +1272,19 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
 
           {/* APPLICATIONS */}
           {!isRecruiterRole && section === 'applications' && (
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflow: 'hidden' }}>
-              {applications.length === 0 ? (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflowX: 'auto', overflowY: 'hidden' }}>
+              {myApplications.length === 0 ? (
                 <div className="app-empty">No applications yet. Find a job and apply!</div>
               ) : (
                 <table className="app-table">
                   <thead><tr><th>Job Title</th><th>Company</th><th>Applied</th><th>Status</th></tr></thead>
                   <tbody>
-                    {applications.map((a, i) => (
+                    {myApplications.map((a, i) => (
                       <tr key={i}>
                         <td><strong>{a.title}</strong></td>
                         <td>{a.company}</td>
                         <td>{a.appliedAt}</td>
-                        <td><span className={`app-status ${a.status?.toLowerCase()}`}>{a.status}</span></td>
+                        <td><span className={`app-status ${getApplicationStatusMeta(a.status).key}`}>{getApplicationStatusMeta(a.status).label}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -990,7 +1346,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
               <div className="dash-stats-row">
                 <div className="dash-stat-card"><h4>Active Jobs</h4><div className="num">{myJobs.length}</div><div className="change">Currently posted</div></div>
                 <div className="dash-stat-card"><h4>Total Applicants</h4><div className="num">{applicantList.length}</div><div className="change">Across all jobs</div></div>
-                <div className="dash-stat-card"><h4>Interviews</h4><div className="num">{applicantList.filter(a => a.status === 'Interviewed').length}</div><div className="change">Scheduled</div></div>
+                <div className="dash-stat-card"><h4>Interviews</h4><div className="num">{applicantList.filter(a => getApplicationStatusMeta(a.status).key === 'interview').length}</div><div className="change">Scheduled</div></div>
               </div>
               <div className="dash-two-col">
                 <div className="dash-panel">
@@ -1001,7 +1357,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                         <div key={i} className="recent-app-item">
                           <div className="recent-app-logo" style={{ background: '#0A65CC' }}>{(a.name || 'A')[0]}</div>
                           <div className="recent-app-info"><h4>{a.name}</h4><p>{a.role} · {a.applied}</p></div>
-                          <span className={`app-status ${a.status?.toLowerCase()}`}>{a.status}</span>
+                          <span className={`app-status ${getApplicationStatusMeta(a.status).key}`}>{getApplicationStatusMeta(a.status).label}</span>
                         </div>
                       ))}
                     </div>
@@ -1198,7 +1554,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
 
           {/* RECRUITER - MY JOBS */}
           {isRecruiterRole && section === 'myJobs' && (
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflow: 'hidden' }}>
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ padding: 24, borderBottom: '1px solid #EBEBF0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>My Jobs ({myJobs.length})</h3>
                 <button onClick={() => setSection('postJob')} style={{ padding: '8px 16px', background: '#0A65CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 600 }}>+ Post New Job</button>
@@ -1214,7 +1570,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                         <td><strong>{j.title}</strong></td>
                         <td>{j.posted}</td>
                         <td><span style={{ fontWeight: 600, color: '#0A65CC' }}>{j.applicants}</span></td>
-                        <td><span className={`app-status ${j.status?.toLowerCase()}`}>{j.status}</span></td>
+                        <td><span className={`app-status ${getApplicationStatusMeta(j.status).key}`}>{j.status}</span></td>
                         <td><button onClick={() => handleEditJobClick(j)} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>Edit</button></td>
                       </tr>
                     ))}
@@ -1226,7 +1582,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
 
           {/* RECRUITER - APPLICANTS */}
           {isRecruiterRole && section === 'applicants' && (
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflow: 'hidden' }}>
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #EBEBF0', overflowX: 'auto', overflowY: 'hidden' }}>
               <div style={{ padding: 24, borderBottom: '1px solid #EBEBF0' }}>
                 <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>Applicants ({applicantList.length})</h3>
               </div>
@@ -1234,18 +1590,29 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF' }}>No applicants yet.</div>
               ) : (
                 <table className="app-table">
-                  <thead><tr><th>Candidate</th><th>Role Applied</th><th>Match Score</th><th>Status</th><th>Applied</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Candidate</th><th>Role Applied</th><th>Match</th><th>Resume</th><th>Status</th><th>Applied</th><th>Actions</th></tr></thead>
                   <tbody>
                     {applicantList.map((a, i) => (
                       <tr key={i}>
-                        <td><strong>{a.name}</strong></td>
+                        <td>
+                          <strong>{a.name}</strong>
+                          <div style={{ fontSize: 11, color: '#767F8C' }}>{a.email || 'No email'}</div>
+                        </td>
                         <td>{a.role}</td>
                         <td><span style={{ fontWeight: 600, color: '#0A65CC' }}>{a.match}</span></td>
-                        <td><span className={`app-status ${a.status?.toLowerCase()}`}>{a.status}</span></td>
+                        <td>
+                          {a.resumeFile ? (
+                            <a href={getResumeFileUrl(a.resumeFile)} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#0A65CC', fontWeight: 700, textDecoration: 'none' }}>Open Resume</a>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#9CA3AF' }}>No resume</span>
+                          )}
+                        </td>
+                        <td><span className={`app-status ${getApplicationStatusMeta(a.status).key}`}>{getApplicationStatusMeta(a.status).label}</span></td>
                         <td>{a.applied}</td>
                         <td style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => toast(`Viewing ${a.name}'s profile...`, 'info')} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>View</button>
-                          <button onClick={() => { setApplicantList(al => al.map(x => x.id === a.id ? { ...x, status: 'Interviewed' } : x)); toast(`Moved ${a.name} to Interviewed`, 'success'); }} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>Interview</button>
+                          <button onClick={() => setSelectedProfile({ type: 'application', data: a })} style={{ padding: '4px 10px', background: '#F0F0F5', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#18191C' }}>View</button>
+                          <button onClick={() => handleRecruiterStatusChange(a.id, 'interview', a.name)} style={{ padding: '4px 10px', background: '#EEF5FF', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0A65CC' }}>Interview</button>
+                          <button onClick={() => handleRecruiterStatusChange(a.id, 'rejected', a.name)} style={{ padding: '4px 10px', background: '#FFF1F1', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#B42318' }}>Reject</button>
                         </td>
                       </tr>
                     ))}
@@ -1262,9 +1629,17 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C' }}>Top Recruiters</h3>
               </div>
               <div className="recruiters-grid">
-                {RECRUITERS.map((r, i) => (
+                {directoryRecruiters.map((r, i) => (
                   <div key={i} className="recruiter-card">
-                    <div className="recruiter-avatar" style={{ background: r.color }}>{r.name[0]}</div>
+                    <div className="recruiter-avatar" style={r.logo ? {
+                      backgroundImage: `url(${getProfileImageUrl(r.logo)})`,
+                      backgroundPosition: 'center',
+                      backgroundSize: 'cover',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundColor: '#fff',
+                    } : { background: r.color }}>
+                      {r.logo ? null : r.name[0]}
+                    </div>
                     <div className="recruiter-name">{r.name}</div>
                     <div className="recruiter-company">{r.company}</div>
                     <div className="recruiter-stats">
@@ -1286,13 +1661,23 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 <input type="text" placeholder="Search candidates..." style={{ padding: '9px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 13, outline: 'none', width: 220 }} />
               </div>
               <div className="candidates-grid">
-                {CANDIDATES.map((c, i) => (
+                {directoryCandidates.map((c, i) => (
                   <div key={i} className="candidate-card">
-                    <div className="candidate-avatar" style={{ background: c.color }}>{c.initials}</div>
+                    <div
+                      className="candidate-avatar"
+                      style={c.profileImage ? {
+                        backgroundImage: `url(${getProfileImageUrl(c.profileImage)})`,
+                        backgroundPosition: 'center',
+                        backgroundSize: 'cover',
+                        backgroundRepeat: 'no-repeat',
+                      } : { background: c.color }}
+                    >
+                      {c.profileImage ? null : c.initials}
+                    </div>
                     <div className="candidate-name">{c.name}</div>
                     <div className="candidate-role">{c.role}</div>
                     <div className="candidate-skills">{c.skills.map(s => <span key={s} className="candidate-skill">{s}</span>)}</div>
-                    <button className="btn-view-profile" onClick={() => toast('Profile opened!', 'info')}>View Profile</button>
+                    <button className="btn-view-profile" onClick={() => setSelectedProfile({ type: 'candidate', data: c })}>View Profile</button>
                   </div>
                 ))}
               </div>
@@ -1300,7 +1685,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* BLOG */}
-          {!isRecruiterRole && section === 'blog' && (
+          {false && !isRecruiterRole && section === 'blog' && (
             <div>
               <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Blog</h3>
               <div className="blog-grid">
@@ -1339,7 +1724,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           )}
 
           {/* NEWS */}
-          {!isRecruiterRole && section === 'news' && (
+          {false && !isRecruiterRole && section === 'news' && (
             <div>
               <h3 style={{ fontFamily: 'Jost', fontSize: 18, fontWeight: 700, color: '#18191C', marginBottom: 20 }}>Career &amp; Industry News</h3>
               <div className="news-grid">
@@ -1489,6 +1874,32 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                         />
                         {profileErrors.bio && <div className="settings-error-msg">{profileErrors.bio}</div>}
                       </div>
+                      {!isRecruiterRole && (
+                        <div className="settings-field">
+                          <label>My Skills</label>
+                          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                            <select
+                              value={selectedSkillId}
+                              onChange={e => setSelectedSkillId(e.target.value)}
+                              style={{ flex: 1, padding: '11px 14px', border: '1.5px solid #E4E5E8', borderRadius: 8, fontFamily: 'Mulish', fontSize: 14, outline: 'none' }}
+                            >
+                              <option value="">Select a skill</option>
+                              {jobSeekerSkillCatalog.map(skill => (
+                                <option key={skill.id} value={skill.id}>{skill.skill_name}</option>
+                              ))}
+                            </select>
+                            <button className="settings-save" onClick={handleAddSkill} type="button">Add Skill</button>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {jobSeekerSkills.map(skill => (
+                              <span key={skill.id} className="candidate-skill" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                {skill.skill_name}
+                                <button type="button" onClick={() => handleRemoveSkill(skill.id)} style={{ border: 'none', background: 'transparent', color: '#0A65CC', cursor: 'pointer', fontWeight: 700 }}>×</button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <button className="settings-save" onClick={saveProfile} disabled={profileSaving}>{profileSaving ? 'Saving...' : 'Save Changes'}</button>
                     </div>
                   )}
@@ -1633,8 +2044,114 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         </div>
       )}
 
+      {/* PROFILE / CV MODAL */}
+      {selectedProfile && (
+        <div className="djm-overlay open" onClick={e => { if (e.target === e.currentTarget) setSelectedProfile(null); }}>
+          <div className="profile-card">
+            <button className="djm-close" onClick={() => setSelectedProfile(null)}>✕</button>
+            {selectedProfile.type === 'candidate' ? (
+              <>
+                <div className="profile-header">
+                  <div className="profile-avatar" style={selectedProfile.data.profileImage ? {
+                    backgroundImage: `url(${getProfileImageUrl(selectedProfile.data.profileImage)})`,
+                    backgroundPosition: 'center',
+                    backgroundSize: 'cover',
+                    backgroundRepeat: 'no-repeat',
+                  } : { background: '#0A65CC' }}>{selectedProfile.data.profileImage ? null : selectedProfile.data.initials}</div>
+                  <div>
+                    <h2>{selectedProfile.data.name}</h2>
+                    <p>{selectedProfile.data.role}</p>
+                  </div>
+                </div>
+                <div className="profile-meta-grid">
+                  <div><span>Email</span><strong>{selectedProfile.data.email || 'Private'}</strong></div>
+                  <div><span>Location</span><strong>{selectedProfile.data.location || 'Not provided'}</strong></div>
+                </div>
+                <div className="profile-section">
+                  <h4>Bio</h4>
+                  <p>{selectedProfile.data.bio || 'No bio shared yet.'}</p>
+                </div>
+                <div className="profile-section">
+                  <h4>Skills</h4>
+                  <div className="candidate-skills">
+                    {selectedProfile.data.skills.length > 0
+                      ? selectedProfile.data.skills.map(skill => <span key={skill} className="candidate-skill">{skill}</span>)
+                      : <span className="profile-empty-note">No skills listed.</span>}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="profile-header">
+                  <div className="profile-avatar" style={selectedProfile.data.profileImage ? {
+                    backgroundImage: `url(${getProfileImageUrl(selectedProfile.data.profileImage)})`,
+                    backgroundPosition: 'center',
+                    backgroundSize: 'cover',
+                    backgroundRepeat: 'no-repeat',
+                  } : { background: '#0A65CC' }}>{selectedProfile.data.profileImage ? null : selectedProfile.data.name[0]}</div>
+                  <div>
+                    <h2>{selectedProfile.data.name}</h2>
+                    <p>{selectedProfile.data.role}</p>
+                  </div>
+                </div>
+                <div className="profile-meta-grid">
+                  <div><span>Email</span><strong>{selectedProfile.data.email || 'Private'}</strong></div>
+                  <div><span>Phone</span><strong>{selectedProfile.data.phone || 'Private'}</strong></div>
+                  <div><span>Location</span><strong>{selectedProfile.data.location || 'Not provided'}</strong></div>
+                  <div><span>Experience</span><strong>{selectedProfile.data.experience || 'Not provided'}</strong></div>
+                  <div><span>Match Score</span><strong>{selectedProfile.data.match || '0%'}</strong></div>
+                  <div><span>Status</span><strong>{selectedProfile.data.status || 'Pending'}</strong></div>
+                  <div><span>AI Prediction</span><strong>{selectedProfile.data.prediction || 'Pending Review'}</strong></div>
+                  <div><span>Resume Score</span><strong>{selectedProfile.data.resumeScore}</strong></div>
+                  <div><span>Project Score</span><strong>{selectedProfile.data.projectScore}</strong></div>
+                  <div><span>Job Applied</span><strong>{selectedProfile.data.role || 'Applied Role'}</strong></div>
+                </div>
+                <div className="profile-section">
+                  <h4>Profile Summary</h4>
+                  <p>{selectedProfile.data.bio || 'No profile bio available.'}</p>
+                </div>
+                <div className="profile-section">
+                  <h4>Skills</h4>
+                  <div className="candidate-skills">
+                    {selectedProfile.data.skills?.length
+                      ? selectedProfile.data.skills.map(skill => <span key={skill} className="candidate-skill">{skill}</span>)
+                      : <span className="profile-empty-note">No skills listed.</span>}
+                  </div>
+                </div>
+                <div className="profile-section">
+                  <h4>Cover Letter</h4>
+                  <p>{selectedProfile.data.coverLetter || 'No cover letter shared.'}</p>
+                </div>
+                <div className="profile-section">
+                  <h4>Resume</h4>
+                  {selectedProfile.data.resumeFile ? (
+                    <a className="resume-link" href={getResumeFileUrl(selectedProfile.data.resumeFile)} target="_blank" rel="noreferrer">Open Resume</a>
+                  ) : (
+                    <span className="profile-empty-note">No resume uploaded.</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                  <button
+                    onClick={() => handleRecruiterStatusChange(selectedProfile.data.id, 'interview', selectedProfile.data.name)}
+                    style={{ padding: '10px 16px', background: '#EEF5FF', color: '#0A65CC', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 700 }}
+                  >
+                    Mark Interview
+                  </button>
+                  <button
+                    onClick={() => handleRecruiterStatusChange(selectedProfile.data.id, 'rejected', selectedProfile.data.name)}
+                    style={{ padding: '10px 16px', background: '#FFF1F1', color: '#B42318', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'Mulish', fontSize: 13, fontWeight: 700 }}
+                  >
+                    Reject Candidate
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* APPLY MODAL */}
-      <ApplyModal open={!!applyJob} job={applyJob} onClose={() => setApplyJob(null)} onSubmit={onApply} />
+      <ApplyModal open={!!applyJob} job={applyJob} onClose={() => setApplyJob(null)} onSubmit={handleJobSeekerApply} prefill={applyPrefill} />
     </div>
   );
 }

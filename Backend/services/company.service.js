@@ -94,6 +94,32 @@ exports.getCompanies = (req, res) => {
   });
 };
 
+// =====================
+// GET RECRUITERS DIRECTORY
+// =====================
+exports.getRecruiters = (req, res) => {
+  db.query(
+    `SELECT
+      r.user_id,
+      c.id AS company_id,
+      c.name AS company_name,
+      c.logo,
+      c.description,
+      (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.id) AS jobs_posted
+     FROM recruiters r
+     JOIN companies c ON r.company_id = c.id
+     ORDER BY c.id DESC`,
+    (err, result) => {
+      if (err) {
+        console.log("DB ERROR:", err);
+        return res.status(500).json({ error: "Database error" });
+      }
+
+      return res.json(result);
+    }
+  );
+};
+
 
 // =====================
 // GET COMPANY BY ID

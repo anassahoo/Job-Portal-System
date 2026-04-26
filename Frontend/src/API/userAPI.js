@@ -17,6 +17,11 @@ export function getProfileImageUrl(fileName) {
 	return `${SERVER_BASE_URL}/uploads/images/${fileName}`;
 }
 
+export function getResumeFileUrl(fileName) {
+	if (!fileName) return '';
+	return `${SERVER_BASE_URL}/uploads/resumes/${fileName}`;
+}
+
 export async function getMyProfile() {
 	const response = await fetch(`${API_BASE_URL}/users/me`, {
 		method: 'GET',

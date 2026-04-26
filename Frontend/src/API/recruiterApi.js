@@ -169,3 +169,16 @@ export async function getRecruiterApplications() {
 
   return parseResponse(response, 'Failed to load applicants');
 }
+
+export async function updateRecruiterApplicationStatus(applicationId, status) {
+  const response = await fetch(`${API_BASE_URL}/applications/${applicationId}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  return parseResponse(response, 'Failed to update applicant status');
+}

@@ -103,9 +103,15 @@ exports.addJobSkill = (req, res) => {
 // =====================
 exports.getAllJobs = (req, res) => {
   db.query(
-    `SELECT j.*, c.name AS company_name
+    `SELECT j.*, c.name AS company_name, c.logo AS company_logo, jsum.required_skills
      FROM jobs j
-     LEFT JOIN companies c ON j.company_id = c.id`,
+     LEFT JOIN companies c ON j.company_id = c.id
+     LEFT JOIN (
+       SELECT js.job_id, GROUP_CONCAT(DISTINCT s.skill_name ORDER BY s.skill_name SEPARATOR ', ') AS required_skills
+       FROM job_skills js
+       JOIN skills s ON js.skill_id = s.id
+       GROUP BY js.job_id
+     ) jsum ON j.id = jsum.job_id`,
     (err, result) => {
       if (err) {
         console.log("DB ERROR:", err);
@@ -125,11 +131,15 @@ exports.getJobDetails = (req, res) => {
   const jobId = req.params.id;
 
   db.query(
-    `SELECT j.*, c.name AS company_name, s.skill_name
+    `SELECT j.*, c.name AS company_name, c.logo AS company_logo, jsum.required_skills
      FROM jobs j
      LEFT JOIN companies c ON j.company_id = c.id
-     LEFT JOIN job_skills js ON j.id = js.job_id
-     LEFT JOIN skills s ON js.skill_id = s.id
+     LEFT JOIN (
+       SELECT js.job_id, GROUP_CONCAT(DISTINCT s.skill_name ORDER BY s.skill_name SEPARATOR ', ') AS required_skills
+       FROM job_skills js
+       JOIN skills s ON js.skill_id = s.id
+       GROUP BY js.job_id
+     ) jsum ON j.id = jsum.job_id
      WHERE j.id = ?`,
     [jobId],
     (err, result) => {
@@ -150,11 +160,17 @@ exports.getMyJobs = (req, res) => {
   const userId = req.user.id;
 
   db.query(
-    `SELECT j.*, c.name AS company_name,
+    `SELECT j.*, c.name AS company_name, jsum.required_skills,
       (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) AS applicants_count
      FROM jobs j
      JOIN recruiters r ON j.company_id = r.company_id
      LEFT JOIN companies c ON j.company_id = c.id
+     LEFT JOIN (
+       SELECT js.job_id, GROUP_CONCAT(DISTINCT s.skill_name ORDER BY s.skill_name SEPARATOR ', ') AS required_skills
+       FROM job_skills js
+       JOIN skills s ON js.skill_id = s.id
+       GROUP BY js.job_id
+     ) jsum ON j.id = jsum.job_id
      WHERE r.user_id = ?
      ORDER BY j.id DESC`,
     [userId],
@@ -175,10 +191,27 @@ exports.getMyJobs = (req, res) => {
 exports.updateJob = (req, res) => {
   const userId = req.user.id;
   const jobId = req.params.id;
-  const { title, description } = req.body || {};
+  const { title, description, skill_ids } = req.body || {};
 
   const fields = [];
   const values = [];
+  const hasSkillUpdate = skill_ids !== undefined;
+
+  const normalizeSkillIds = () => {
+    const rawSkillIds = Array.isArray(skill_ids)
+      ? skill_ids
+      : typeof skill_ids === "string"
+        ? skill_ids.split(",")
+        : [];
+
+    return Array.from(
+      new Set(
+        rawSkillIds
+          .map(id => Number(id))
+          .filter(id => Number.isInteger(id) && id > 0)
+      )
+    );
+  };
 
   if (typeof title === "string" && title.trim()) {
     fields.push("title = ?");
@@ -190,7 +223,7 @@ exports.updateJob = (req, res) => {
     values.push(description.trim());
   }
 
-  if (fields.length === 0) {
+  if (fields.length === 0 && !hasSkillUpdate) {
     return res.status(400).json({ error: "No job fields provided to update" });
   }
 
@@ -211,6 +244,57 @@ exports.updateJob = (req, res) => {
         return res.status(403).json({ error: "You can only edit your own jobs" });
       }
 
+      const finishUpdate = () => {
+        if (!hasSkillUpdate) {
+          return res.json({ message: "Job updated successfully" });
+        }
+
+        const nextSkillIds = normalizeSkillIds();
+
+        db.query(
+          "DELETE FROM job_skills WHERE job_id = ?",
+          [jobId],
+          (deleteErr) => {
+            if (deleteErr) {
+              console.log("DB ERROR:", deleteErr);
+              return res.status(500).json({ error: "Failed to update job skills" });
+            }
+
+            if (nextSkillIds.length === 0) {
+              return res.json({ message: "Job updated successfully" });
+            }
+
+            let index = 0;
+
+            const insertNextSkill = () => {
+              if (index >= nextSkillIds.length) {
+                return res.json({ message: "Job updated successfully" });
+              }
+
+              db.query(
+                "INSERT INTO job_skills (job_id, skill_id) VALUES (?, ?)",
+                [jobId, nextSkillIds[index]],
+                (insertErr) => {
+                  if (insertErr) {
+                    console.log("DB ERROR:", insertErr);
+                    return res.status(500).json({ error: "Failed to update job skills" });
+                  }
+
+                  index += 1;
+                  insertNextSkill();
+                }
+              );
+            };
+
+            insertNextSkill();
+          }
+        );
+      };
+
+      if (fields.length === 0) {
+        return finishUpdate();
+      }
+
       values.push(jobId);
 
       db.query(
@@ -222,7 +306,7 @@ exports.updateJob = (req, res) => {
             return res.status(500).json({ error: "Job update failed" });
           }
 
-          return res.json({ message: "Job updated successfully" });
+          return finishUpdate();
         }
       );
     }

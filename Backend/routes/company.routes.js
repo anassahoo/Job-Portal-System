@@ -11,6 +11,9 @@ router.post("/create", authMiddleware, upload.single("logo"), companyController.
 // GET ALL COMPANIES
 router.get("/", authMiddleware, companyController.getCompanies);
 
+// GET RECRUITERS DIRECTORY
+router.get("/recruiters", authMiddleware, companyController.getRecruiters);
+
 // GET MY COMPANY
 router.get("/my", authMiddleware, companyController.getMyCompany);
 
