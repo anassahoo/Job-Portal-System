@@ -394,6 +394,7 @@ body { font-family: 'Mulish', sans-serif; background: #f5f5f5; color: #1a1a2e; }
 .app-status.interview { background: #EEF5FF; color: #0A65CC; }
 .app-status.rejected { background: #FEF2F2; color: #dc2626; }
 .app-status.offered { background: #F0FDF4; color: #059669; }
+.app-status.active { background: #EFF6FF; color: #1D4ED8; }
 .app-empty { text-align: center; padding: 48px; color: #9CA3AF; font-size: 14px; }
 
 /* ====== MESSAGES ====== */
@@ -555,3 +556,100 @@ body { font-family: 'Mulish', sans-serif; background: #f5f5f5; color: #1a1a2e; }
 .recent-app-info { flex: 1; }
 .recent-app-info h4 { font-size: 13px; font-weight: 700; color: #18191C; }
 .recent-app-info p { font-size: 11px; color: #767F8C; }
+
+@media (max-width: 1200px) {
+  .jobie-jobs-grid { grid-template-columns: repeat(2, 1fr); }
+  .candidates-grid { grid-template-columns: repeat(3, 1fr); }
+  .recruiters-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 992px) {
+  .jobie-layout { flex-direction: column; }
+  .jobie-sidebar {
+    position: static;
+    width: 100%;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--dash-line);
+    box-shadow: none;
+  }
+  .jobie-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 12px 12px;
+  }
+  .jobie-nav-item {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+  .jobie-sidebar-footer { display: none; }
+  .jobie-main { margin-left: 0; }
+  .jobie-topbar {
+    height: auto;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .jobie-topbar-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .jobie-search-top {
+    flex: 1;
+    min-width: 200px;
+  }
+  .jobie-search-top input { width: 100%; }
+  .jobie-content { padding: 16px; }
+  .dash-two-col,
+  .settings-grid,
+  .blog-grid,
+  .news-grid { grid-template-columns: 1fr; }
+  .dash-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .find-job-search {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .find-job-field { min-width: 220px; }
+  .btn-search-jobs { width: 100%; }
+  .messages-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 520px;
+  }
+  .msg-list {
+    max-height: 220px;
+    border-right: none;
+    border-bottom: 1px solid var(--dash-line);
+  }
+  .msg-chat-area { min-height: 280px; }
+  .profile-meta-grid,
+  .settings-row,
+  .apply-row,
+  .jlm-info-row { grid-template-columns: 1fr; }
+  .settings-phone-group { grid-template-columns: 1fr; }
+  .app-table { min-width: 760px; }
+}
+
+@media (max-width: 640px) {
+  .jobie-jobs-grid,
+  .candidates-grid,
+  .recruiters-grid { grid-template-columns: 1fr; }
+  .dash-stats-row { grid-template-columns: 1fr; }
+  .welcome-banner { padding: 20px 16px; }
+  .welcome-banner h2 { font-size: 20px; }
+  .topbar-notification-menu {
+    width: min(92vw, 320px);
+    right: -8px;
+  }
+  .profile-card,
+  .djm-card,
+  .apply-card,
+  .jlm-card {
+    width: calc(100vw - 24px);
+    padding: 20px;
+  }
+}

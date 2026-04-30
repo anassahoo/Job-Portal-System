@@ -181,6 +181,7 @@ function getApplicationStatusMeta(rawStatus) {
     rejected: { key: 'rejected', label: 'Rejected' },
     offer: { key: 'offered', label: 'Offered' },
     offered: { key: 'offered', label: 'Offered' },
+    active: { key: 'active', label: 'Active' },
   };
 
   return statusMap[normalized] || { key: 'pending', label: 'Pending' };
@@ -229,7 +230,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
 
   const displayName = profileForm.fname?.trim() || user.fname || 'Guest';
   const initials = `${profileForm.fname?.[0] || user.fname?.[0] || 'G'}${profileForm.lname?.[0] || user.lname?.[0] || ''}`;
-  const isRecruiterRole = ['recruiter', 'recuteir'].includes(String(user.role || '').toLowerCase());
+  const isRecruiterRole = ['recruiter', 'recuteir', 'recuiter', 'recurieter', 'recuriecter'].includes(String(user.role || '').toLowerCase());
   const sectionTitles = {
     // Student sections
     home: 'Home',
@@ -381,7 +382,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         setMyJobs(mappedJobs);
 
         const mappedApplicants = Array.isArray(applicants)
-          ? applicants.map(a => ({
+          ? applicants.map(a => {
               const statusMeta = getApplicationStatusMeta(a.status);
 
               return {
@@ -488,7 +489,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
           : [];
 
         const normalizedApps = Array.isArray(apps)
-          ? apps.map(a => ({
+          ? apps.map(a => {
               const statusMeta = getApplicationStatusMeta(a.status);
 
               return {
@@ -524,7 +525,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
       try {
         const apps = await getMyApplicationsForJobSeeker();
         const normalizedApps = Array.isArray(apps)
-          ? apps.map(a => ({
+          ? apps.map(a => {
               const statusMeta = getApplicationStatusMeta(a.status);
 
               return {
@@ -725,7 +726,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
       await applyToJob({ job_id: applicationPayload.id });
       const apps = await getMyApplicationsForJobSeeker();
       const normalizedApps = Array.isArray(apps)
-        ? apps.map(a => ({
+        ? apps.map(a => {
             const statusMeta = getApplicationStatusMeta(a.status);
 
             return {
@@ -807,7 +808,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
   }
 
   const notificationItems = isRecruiterRole
-    ? applicantList.slice(0, 6).map(applicant => ({
+    ? applicantList.slice(0, 6).map(applicant => {
         const statusMeta = getApplicationStatusMeta(applicant.status);
 
         return {
@@ -817,7 +818,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         tone: statusMeta.label === 'Pending' ? 'success' : 'info',
         };
       })
-    : myApplications.slice(0, 6).map(application => ({
+    : myApplications.slice(0, 6).map(application => {
         const statusMeta = getApplicationStatusMeta(application.status);
 
         return {

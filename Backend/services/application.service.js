@@ -1,5 +1,10 @@
 const db = require("../config/db");
 
+function isRecruiterRole(roleValue) {
+  const normalized = String(roleValue || "").toLowerCase();
+  return ["recruiter", "recuteir", "recuiter", "recurieter", "recuriecter"].includes(normalized);
+}
+
 exports.applyJob = (req, res) => {
   const userId = req.user.id;
   const { job_id } = req.body;
@@ -121,7 +126,7 @@ exports.getApplications = (req, res) => {
 // =====================
 exports.getRecruiterApplications = (req, res) => {
   const role = String(req.user.role || "").toLowerCase();
-  if (!["recuteir", "recruiter"].includes(role)) {
+  if (!isRecruiterRole(role)) {
     return res.status(403).json({ error: "Recruiter access required" });
   }
 
@@ -177,7 +182,7 @@ exports.getRecruiterApplications = (req, res) => {
 // =====================
 exports.updateApplicationStatus = (req, res) => {
   const role = String(req.user.role || "").toLowerCase();
-  if (!["recuteir", "recruiter"].includes(role)) {
+  if (!isRecruiterRole(role)) {
     return res.status(403).json({ error: "Recruiter access required" });
   }
 
@@ -186,8 +191,8 @@ exports.updateApplicationStatus = (req, res) => {
 
   const statusAliases = {
     pending: "Pending",
-    interview: "Interviewed",
-    interviewed: "Interviewed",
+    interview: "Interview",
+    interviewed: "Interview",
     rejected: "Rejected",
   };
 
