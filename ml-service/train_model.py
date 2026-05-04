@@ -105,11 +105,55 @@ def _derive_pseudo_labels(scores: Dict[str, float]) -> tuple[str, str]:
 
     total_score = scores["match_percentage"] + scores["resume_score"] + scores["project_score"]
 
-    if total_score >= 170:
+    if total_score >= 210:
         return "Accepted", "None"
     if total_score >= 120:
         return "Interview", _weakest_reason(scores)
     return "Rejected", _weakest_reason(scores)
+
+
+def _create_augmented_training_frame(base_df: pd.DataFrame, random_state: int = 42) -> pd.DataFrame:
+    """Expand the tiny resume-derived dataset with synthetic samples that cover the full score space."""
+
+    rng = np.random.default_rng(random_state)
+    feature_rows = []
+
+    base_features = base_df[["match_percentage", "resume_score", "project_score"]].to_numpy(dtype=float)
+
+    for features in base_features:
+        for _ in range(20):
+            noise = rng.normal(loc=0.0, scale=15.0, size=3)
+            sample = np.clip(features + noise, 0, 100)
+            sample_dict = {
+                "match_percentage": float(sample[0]),
+                "resume_score": float(sample[1]),
+                "project_score": float(sample[2]),
+            }
+            decision, reason = _derive_pseudo_labels(sample_dict)
+            feature_rows.append({**sample_dict, "decision": decision, "reason": reason})
+
+    for _ in range(400):
+        sample = rng.uniform(0, 100, size=3)
+        sample_dict = {
+            "match_percentage": float(sample[0]),
+            "resume_score": float(sample[1]),
+            "project_score": float(sample[2]),
+        }
+        decision, reason = _derive_pseudo_labels(sample_dict)
+        feature_rows.append({**sample_dict, "decision": decision, "reason": reason})
+
+    synthetic_df = pd.DataFrame(feature_rows)
+    if synthetic_df.empty:
+        raise ValueError("Failed to create augmented training data.")
+
+    combined_df = pd.concat(
+        [
+            base_df[["match_percentage", "resume_score", "project_score", "decision", "reason"]].copy(),
+            synthetic_df,
+        ],
+        ignore_index=True,
+    )
+    return combined_df
 
 
 def build_training_dataframe(
@@ -260,6 +304,11 @@ def train_model(
     """Train the decision and reason models from resume PDFs."""
 
     training_df = build_training_dataframe(dataset_dir, job_description, labels_csv)
+    labels_path = find_labels_csv(labels_csv)
+
+    if labels_path is None:
+        training_df = _create_augmented_training_frame(training_df)
+
     feature_columns = ["match_percentage", "resume_score", "project_score"]
     X = training_df[feature_columns]
 

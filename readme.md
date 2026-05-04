@@ -276,6 +276,52 @@ React Frontend
 
 ---
 
+## 7. Real Meaning of Each Feature
+
+### 📊 `match_percentage`
+
+* Shows how closely the resume text matches the job description
+* Calculated from resume and job description text using TF-IDF + cosine similarity
+* Higher value means the resume language is more aligned with the role requirements
+
+### 📄 `resume_score`
+
+* Measures how strong the resume content is overall
+* Built from:
+
+  * detected skills from the predefined skills list
+  * education keywords like BS, MS, and PhD
+  * years of experience found through regex patterns
+
+* Higher value means the resume shows better skill coverage, education, and experience
+
+### 🧪 `project_score`
+
+* Measures how strong the candidate’s project section is
+* Calculated from:
+
+  * project-related words such as project, built, developed, deployed, portfolio, and GitHub
+  * technology keywords such as AI, ML, Web, React, Node.js, FastAPI, Docker, AWS, and similar terms
+
+* Higher value means the resume shows more evidence of practical work, tooling, and project impact
+
+### How the model uses these scores
+
+* The backend sends these three scores to the ML service
+* The ML model uses them as input features to predict:
+
+  * `Accepted`
+  * `Interview`
+  * `Rejected`
+
+* If the result is not `Accepted`, the model also predicts the likely reason:
+
+  * `Skill Gap`
+  * `Weak Resume`
+  * `Weak Projects`
+
+---
+
 ## Output:
 
 * Skill Gap
