@@ -19,6 +19,7 @@ db.getConnection((err, connection) => {
     console.log("Database Connected Successfully");
 
     const schemaFixes = [
+      "ALTER TABLE applications MODIFY COLUMN status VARCHAR(255) DEFAULT 'Pending'",
       "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS first_name VARCHAR(255) NULL",
       "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS last_name VARCHAR(255) NULL",
       "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL",
