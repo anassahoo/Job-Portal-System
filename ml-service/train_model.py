@@ -101,13 +101,25 @@ def _weakest_reason(scores: Dict[str, float]) -> str:
 
 
 def _derive_pseudo_labels(scores: Dict[str, float]) -> tuple[str, str]:
-    """Fallback labels for demo training when a labels.csv file is not available."""
+    """Fallback labels for demo training when a labels.csv file is not available.
+    
+    Uses realistic thresholds based on actual feature ranges:
+    - weighted_score = (match% * 0.25) + (resume_score * 0.4) + (project_score * 0.35)
+    - Accepted: >= 20 (strong candidates with good projects/experience)
+    - Interview: 8-19 (promising candidates worth talking to)
+    - Rejected: < 8 (significant skill/project gaps)
+    """
 
-    total_score = scores["match_percentage"] + scores["resume_score"] + scores["project_score"]
+    # Weight the scores
+    weighted_score = (
+        (scores["match_percentage"] * 0.25) +
+        (scores["resume_score"] * 0.4) +
+        (scores["project_score"] * 0.35)
+    )
 
-    if total_score >= 210:
+    if weighted_score >= 20:
         return "Accepted", "None"
-    if total_score >= 120:
+    if weighted_score >= 8:
         return "Interview", _weakest_reason(scores)
     return "Rejected", _weakest_reason(scores)
 
