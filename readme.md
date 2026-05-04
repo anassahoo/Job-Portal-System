@@ -120,16 +120,47 @@ Example:
 # 🔗 System Architecture
 
 ```id="arch01"
-React (Frontend)
-       ↓
-Node.js (Backend API)
-       ↓
-MySQL (Database)
-       ↓
-FastAPI (ML Service)
-       ↓
-Node.js → React
+React Frontend
+  ↓
+Node.js Backend API
+  ↓
+FastAPI ML Service
+  ↓
+Node.js Backend API
+  ↓
+React Frontend
 ```
+
+---
+
+# 🔁 Frontend to Model Flow
+
+```id="flow01"
+1. User uploads a resume or opens an application screen in the React frontend.
+2. The frontend sends the resume/job data to the Node.js backend.
+3. The backend stores application data in MySQL and prepares the feature payload.
+4. The backend forwards the request to the FastAPI ML service.
+5. The ML service extracts PDF text, builds scores, and predicts decision + reason.
+6. The backend receives the ML response and saves the result.
+7. The backend sends the final prediction back to the frontend.
+8. The frontend displays the decision, reason, scores, and suggestions to the user.
+```
+
+---
+
+# 🧭 End-to-End Request Path
+
+## Frontend → Backend → ML Service
+
+* React collects the resume/application input.
+* Node.js validates the request and manages database records.
+* FastAPI handles PDF parsing, feature extraction, and model inference.
+
+## ML Service → Backend → Frontend
+
+* FastAPI returns the predicted decision, reason, and feature scores.
+* Node.js stores the result and formats the response.
+* React renders the outcome in the dashboard or analysis report.
 
 ---
 
@@ -160,7 +191,8 @@ Node.js → React
 ## 4. Job Application (Student)
 
 * Student applies to job
-* System calculates:
+* Backend checks whether the student already applied
+* Backend compares student skills with job-required skills and calculates:
 
   * Skill match %
   * Resume score
@@ -170,8 +202,26 @@ Node.js → React
 
 ## 5. ML Prediction
 
-* Data sent to FastAPI
-* ML model predicts rejection reason
+* Backend sends `match_percentage`, `resume_score`, and `project_score` to FastAPI
+* FastAPI loads the trained model and predicts the final decision and reason
+* If the PDF-based path is used, FastAPI first extracts resume text, builds the scores, then predicts the result
+
+### How the model decides
+
+* `match_percentage` shows how close the resume is to the job description
+* `resume_score` checks skills, education keywords, and experience signals
+* `project_score` checks project keywords and technology mentions
+* The ML model uses these values to predict:
+
+  * `Accepted`
+  * `Interview`
+  * `Rejected`
+
+* If the decision is not `Accepted`, it also predicts the main reason:
+
+  * `Skill Gap`
+  * `Weak Resume`
+  * `Weak Projects`
 
 ---
 
@@ -182,6 +232,27 @@ Node.js → React
   * Prediction
   * Issues
   * Suggestions
+
+* Frontend receives the response from the backend and updates the UI immediately
+* The response usually contains:
+
+  * `decision`
+  * `prediction`
+  * `match_percentage`
+  * `resume_score`
+  * `project_score`
+  * `suggestions`
+
+* Example:
+
+```json
+{
+  "message": "Application submitted",
+  "match_percentage": 74,
+  "prediction": "Weak Resume",
+  "status": "Rejected"
+}
+```
 
 ---
 
