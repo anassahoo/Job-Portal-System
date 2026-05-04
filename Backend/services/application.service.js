@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const path = require("path");
 
 function isRecruiterRole(roleValue) {
   const normalized = String(roleValue || "").toLowerCase();
@@ -24,98 +25,78 @@ exports.applyJob = (req, res) => {
       }
 
       db.query(
-        "SELECT skill_id FROM user_skills WHERE user_id = ?",
-        [userId],
-        (err, userSkills) => {
-          if (err) return res.status(500).json({ error: "DB error" });
+        `SELECT j.title, j.description, r.file_path, r.resume_score
+         FROM jobs j
+         LEFT JOIN resumes r ON r.user_id = ?
+         WHERE j.id = ?
+         LIMIT 1`,
+        [userId, job_id],
+        async (jobErr, jobRows) => {
+          if (jobErr) return res.status(500).json({ error: "DB error" });
 
-          const userSkillIds = userSkills.map(s => s.skill_id);
+          const jobRow = jobRows[0] || {};
+          const resumeFile = jobRow.file_path;
+          const resumeAbsolutePath = resumeFile
+            ? path.join(process.cwd(), "uploads", "resumes", resumeFile)
+            : null;
+
+          const fallbackScore = Number(jobRow.resume_score || 0);
+          let final_match_percentage = 0;
+          let resume_score = fallbackScore;
+          let project_score = 0;
+          let prediction = "Weak Resume";
+          let status = "Rejected";
+
+          try {
+            if (resumeAbsolutePath) {
+              const mlResponse = await fetch("http://127.0.0.1:8000/predict-pdf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  pdf_path: resumeAbsolutePath,
+                  job_description: jobRow.description || "",
+                }),
+              });
+
+              if (mlResponse.ok) {
+                const mlData = await mlResponse.json();
+                final_match_percentage = Number(mlData.match_percentage || 0);
+                resume_score = Number(mlData.resume_score || 0);
+                project_score = Number(mlData.project_score || 0);
+
+                if (String(mlData.decision || "").toLowerCase() === "rejected") {
+                  status = "Rejected";
+                  prediction = mlData.reason || mlData.prediction || "Weak Resume";
+                } else {
+                  status = "Interview";
+                  prediction = "None";
+                }
+              } else {
+                console.error("ML Service returned status:", mlResponse.status);
+              }
+            }
+          } catch (mlErr) {
+            console.error("ML Service error:", mlErr.message);
+          }
 
           db.query(
-            "SELECT skill_id FROM job_skills WHERE job_id = ?",
-            [job_id],
-            (err2, jobSkills) => {
-              if (err2) return res.status(500).json({ error: "DB error" });
+            `INSERT INTO applications
+             (user_id, job_id, match_percentage, resume_score, project_score, prediction, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [userId, job_id, final_match_percentage, resume_score, project_score, prediction, status],
+            (err4) => {
+              if (err4) {
+                console.log(err4);
+                return res.status(500).json({ error: "Insert failed" });
+              }
 
-              const jobSkillIds = jobSkills.map(s => s.skill_id);
-              const matched = jobSkillIds.filter(id => userSkillIds.includes(id));
-
-              const match_percentage =
-                jobSkillIds.length === 0
-                  ? 0
-                  : Math.round((matched.length / jobSkillIds.length) * 100);
-
-              db.query(
-                "SELECT resume_score FROM resumes WHERE user_id = ?",
-                [userId],
-                async (err3, resumeResult) => {
-                  let resume_score = resumeResult[0]?.resume_score || 0;
-                  let project_score = 50;
-                  let final_match_percentage = match_percentage;
-
-                  // If match is 0 (due to no skills added), assign a random score so the ML model can demonstrate results
-                  if (final_match_percentage === 0) final_match_percentage = Math.floor(Math.random() * 80) + 20;
-                  if (resume_score === 0) resume_score = Math.floor(Math.random() * 80) + 20;
-                  project_score = Math.floor(Math.random() * 80) + 20;
-
-                  let prediction = "Pending Review";
-                  let status = "Pending";
-
-                  try {
-                    // Call the FastAPI ML Service
-                    const mlResponse = await fetch("http://127.0.0.1:8000/predict", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        match_percentage: final_match_percentage,
-                        resume_score: resume_score,
-                        project_score: project_score
-                      })
-                    });
-                    
-                    if (mlResponse.ok) {
-                      const mlData = await mlResponse.json();
-                      status = mlData.decision || status;
-                      prediction = mlData.prediction || prediction;
-                    } else {
-                      console.error("ML Service returned status:", mlResponse.status);
-                    }
-                  } catch (mlErr) {
-                    console.error("ML Service error:", mlErr.message);
-                    // Fallback if ML service is not running
-                    if (final_match_percentage >= 85 && resume_score >= 85) {
-                      status = "Accepted";
-                      prediction = "None";
-                    } else if (final_match_percentage < 60 || resume_score < 60) {
-                      status = "Rejected";
-                      prediction = "Weak Resume";
-                    } else {
-                      status = "Interview";
-                      prediction = "Skill Gap";
-                    }
-                  }
-
-                  db.query(
-                    `INSERT INTO applications
-                     (user_id, job_id, match_percentage, resume_score, project_score, prediction, status)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [userId, job_id, final_match_percentage, resume_score, project_score, prediction, status],
-                    (err4) => {
-                      if (err4) {
-                        console.log(err4);
-                        return res.status(500).json({ error: "Insert failed" });
-                      }
-
-                      return res.json({
-                        message: "Application submitted",
-                        match_percentage: final_match_percentage,
-                        prediction,
-                        status,
-                      });
-                    }
-                  );
-                }
-              );
+              return res.json({
+                message: "Application submitted",
+                match_percentage: final_match_percentage,
+                prediction,
+                status,
+                reason: status === "Rejected" ? prediction : null,
+              });
             }
           );
         }

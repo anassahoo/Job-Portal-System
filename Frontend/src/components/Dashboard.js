@@ -387,6 +387,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
         const mappedApplicants = Array.isArray(applicants)
           ? applicants.map(a => {
               const statusMeta = getApplicationStatusMeta(a.status);
+              const isRejected = statusMeta.key === 'rejected';
 
               return {
               id: a.id,
@@ -410,7 +411,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 .split(',')
                 .map(skill => skill.trim())
                 .filter(Boolean),
-              prediction: a.prediction || 'Pending Review',
+              prediction: isRejected ? (a.prediction || 'No reason provided') : '',
               resumeScore: a.resume_score ?? 0,
               projectScore: a.project_score ?? 0,
               };
@@ -2105,7 +2106,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                   <div><span>Experience</span><strong>{selectedProfile.data.experience || 'Not provided'}</strong></div>
                   <div><span>Match Score</span><strong>{selectedProfile.data.match || '0%'}</strong></div>
                   <div><span>Status</span><strong>{selectedProfile.data.status || 'Pending'}</strong></div>
-                  <div><span>AI Prediction</span><strong>{selectedProfile.data.prediction || 'Pending Review'}</strong></div>
+                  <div><span>{selectedProfile.data.status === 'Rejected' ? 'Rejection Reason' : 'AI Review'}</span><strong>{selectedProfile.data.prediction || (selectedProfile.data.status === 'Rejected' ? 'No reason provided' : 'Interview')}</strong></div>
                   <div><span>Resume Score</span><strong>{selectedProfile.data.resumeScore}</strong></div>
                   <div><span>Project Score</span><strong>{selectedProfile.data.projectScore}</strong></div>
                   <div><span>Job Applied</span><strong>{selectedProfile.data.role || 'Applied Role'}</strong></div>

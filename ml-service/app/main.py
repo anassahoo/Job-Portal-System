@@ -21,22 +21,26 @@ class ResumePredictionRequest(BaseModel):
 
 
 def build_suggestions(decision: str, reason: str | None) -> list[str]:
-    if decision == "Accepted":
-        return ["Great job! Your profile matches the requirements well."]
+    if decision == "Interview":
+        return [
+            "Your profile is a good fit for review by the recruiter.",
+            "Keep the resume clear and highlight the most relevant experience.",
+            "Make sure the job-specific skills are easy to spot at the top.",
+        ]
 
-    if reason == "Skill Gap":
+    if decision == "Rejected" and reason == "Skill Gap":
         return [
             "Learn the required skills mentioned in the job description",
             "Take focused online courses to close the gap",
             "Add relevant certifications or projects",
         ]
-    if reason == "Weak Resume":
+    if decision == "Rejected" and reason == "Weak Resume":
         return [
             "Use a clean professional resume format",
             "Highlight measurable achievements and impact",
             "Proofread for clarity and grammar issues",
         ]
-    if reason == "Weak Projects":
+    if decision == "Rejected" and reason == "Weak Projects":
         return [
             "Add more practical and end-to-end projects",
             "Deploy projects and share live links or GitHub repositories",
@@ -47,14 +51,17 @@ def build_suggestions(decision: str, reason: str | None) -> list[str]:
 
 
 def format_prediction_response(result: dict) -> dict:
-    decision = result["decision"]
-    reason = result.get("reason")
+    raw_decision = str(result.get("decision") or "").strip()
+    raw_reason = result.get("reason")
+    decision = "Rejected" if raw_decision == "Rejected" else "Interview"
+    reason = raw_reason if decision == "Rejected" else None
     return {
         "match_percentage": result["scores"]["match_percentage"],
         "resume_score": result["scores"]["resume_score"],
         "project_score": result["scores"]["project_score"],
         "decision": decision,
-        "prediction": reason if decision != "Accepted" else "None",
+        "reason": reason,
+        "prediction": reason if decision == "Rejected" else "None",
         "suggestions": build_suggestions(decision, reason),
     }
 
@@ -73,5 +80,5 @@ def predict(data: ApplicationData):
 @app.post("/predict-pdf")
 def predict_pdf(data: ResumePredictionRequest):
     result = predict_from_pdf(data.pdf_path, data.job_description)
-    return result
+    return format_prediction_response(result)
 
