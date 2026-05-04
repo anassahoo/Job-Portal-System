@@ -56,8 +56,8 @@ def format_prediction_response(result: dict) -> dict:
     match_percentage = float(result["scores"]["match_percentage"])
     resume_score = float(result["scores"]["resume_score"])
     project_score = float(result["scores"]["project_score"])
-    overall_score = round((match_percentage * 0.5) + (resume_score * 0.3) + (project_score * 0.2), 2)
-    decision = "Interview" if overall_score >= 60 else "Rejected"
+    overall_score = round((match_percentage * 0.6) + (resume_score * 0.25) + (project_score * 0.15), 2)
+    decision = "Interview" if overall_score >= 50 else "Rejected"
     reason = raw_reason if decision == "Rejected" else None
     return {
         "match_percentage": match_percentage,
