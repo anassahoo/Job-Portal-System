@@ -53,12 +53,17 @@ def build_suggestions(decision: str, reason: str | None) -> list[str]:
 def format_prediction_response(result: dict) -> dict:
     raw_decision = str(result.get("decision") or "").strip()
     raw_reason = result.get("reason")
-    decision = "Rejected" if raw_decision == "Rejected" else "Interview"
+    match_percentage = float(result["scores"]["match_percentage"])
+    resume_score = float(result["scores"]["resume_score"])
+    project_score = float(result["scores"]["project_score"])
+    overall_score = round((match_percentage * 0.5) + (resume_score * 0.3) + (project_score * 0.2), 2)
+    decision = "Interview" if overall_score >= 60 else "Rejected"
     reason = raw_reason if decision == "Rejected" else None
     return {
-        "match_percentage": result["scores"]["match_percentage"],
-        "resume_score": result["scores"]["resume_score"],
-        "project_score": result["scores"]["project_score"],
+        "match_percentage": match_percentage,
+        "resume_score": resume_score,
+        "project_score": project_score,
+        "overall_score": overall_score,
         "decision": decision,
         "reason": reason,
         "prediction": reason if decision == "Rejected" else "None",

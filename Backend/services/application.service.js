@@ -46,6 +46,7 @@ exports.applyJob = (req, res) => {
           let project_score = 0;
           let prediction = "Weak Resume";
           let status = "Rejected";
+          let overall_score = 0;
 
           try {
             if (resumeAbsolutePath) {
@@ -63,6 +64,7 @@ exports.applyJob = (req, res) => {
                 final_match_percentage = Number(mlData.match_percentage || 0);
                 resume_score = Number(mlData.resume_score || 0);
                 project_score = Number(mlData.project_score || 0);
+                  overall_score = Number(mlData.overall_score || 0);
 
                 if (String(mlData.decision || "").toLowerCase() === "rejected") {
                   status = "Rejected";
@@ -93,6 +95,7 @@ exports.applyJob = (req, res) => {
               return res.json({
                 message: "Application submitted",
                 match_percentage: final_match_percentage,
+                overall_score,
                 prediction,
                 status,
                 reason: status === "Rejected" ? prediction : null,
@@ -118,6 +121,7 @@ exports.getApplications = (req, res) => {
       a.user_id,
       a.job_id,
       a.match_percentage,
+      ROUND((a.match_percentage * 0.5) + (a.resume_score * 0.3) + (a.project_score * 0.2), 2) AS overall_score,
       a.resume_score,
       a.project_score,
       a.prediction,
@@ -153,6 +157,7 @@ exports.getRecruiterApplications = (req, res) => {
       a.user_id,
       a.job_id,
       a.match_percentage,
+      ROUND((a.match_percentage * 0.5) + (a.resume_score * 0.3) + (a.project_score * 0.2), 2) AS overall_score,
       a.resume_score,
       a.project_score,
       a.prediction,

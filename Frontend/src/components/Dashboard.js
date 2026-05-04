@@ -398,6 +398,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
               role: a.job_title || 'Applied Role',
               company: a.company_name || companyData?.name || 'Company',
               match: `${a.match_percentage || 0}%`,
+              overallScore: a.overall_score ?? 0,
               status: statusMeta.label,
               applied: `Application #${a.id}`,
               title: a.professional_title || 'Not provided',
@@ -503,6 +504,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
               company: a.company_name || 'Company',
               status: statusMeta.label,
               appliedAt: `Application #${a.id}`,
+              prediction: a.prediction || '',
               };
             })
           : [];
@@ -739,6 +741,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
             company: a.company_name || applicationPayload.company || 'Company',
             status: statusMeta.label,
             appliedAt: `Application #${a.id}`,
+            prediction: a.prediction || '',
             };
           })
         : [];
@@ -1282,7 +1285,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                 <div className="app-empty">No applications yet. Find a job and apply!</div>
               ) : (
                 <table className="app-table">
-                  <thead><tr><th>Job Title</th><th>Company</th><th>Applied</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Job Title</th><th>Company</th><th>Applied</th><th>Status</th><th>Reason</th></tr></thead>
                   <tbody>
                     {myApplications.map((a, i) => (
                       <tr key={i}>
@@ -1290,6 +1293,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                         <td>{a.company}</td>
                         <td>{a.appliedAt}</td>
                         <td><span className={`app-status ${getApplicationStatusMeta(a.status).key}`}>{getApplicationStatusMeta(a.status).label}</span></td>
+                        <td style={{ color: '#767F8C' }}>{getApplicationStatusMeta(a.status).key === 'rejected' ? (a.prediction || 'No reason provided') : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2107,6 +2111,7 @@ export default function Dashboard({ user, onSignOut, onUserUpdate, onApply, save
                   <div><span>Match Score</span><strong>{selectedProfile.data.match || '0%'}</strong></div>
                   <div><span>Status</span><strong>{selectedProfile.data.status || 'Pending'}</strong></div>
                   <div><span>{selectedProfile.data.status === 'Rejected' ? 'Rejection Reason' : 'AI Review'}</span><strong>{selectedProfile.data.prediction || (selectedProfile.data.status === 'Rejected' ? 'No reason provided' : 'Interview')}</strong></div>
+                  <div><span>Overall Score</span><strong>{selectedProfile.data.overallScore ?? 0}</strong></div>
                   <div><span>Resume Score</span><strong>{selectedProfile.data.resumeScore}</strong></div>
                   <div><span>Project Score</span><strong>{selectedProfile.data.projectScore}</strong></div>
                   <div><span>Job Applied</span><strong>{selectedProfile.data.role || 'Applied Role'}</strong></div>
