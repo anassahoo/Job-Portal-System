@@ -25,7 +25,11 @@ exports.applyJob = (req, res) => {
       }
 
       db.query(
-        `SELECT j.title, j.description, r.file_path, r.resume_score
+        `SELECT j.title, j.description, r.file_path, r.resume_score,
+           (SELECT GROUP_CONCAT(s.skill_name ORDER BY s.skill_name SEPARATOR ', ')
+            FROM job_skills js
+            JOIN skills s ON js.skill_id = s.id
+            WHERE js.job_id = j.id) AS required_skills
          FROM jobs j
          LEFT JOIN resumes r ON r.user_id = ?
          WHERE j.id = ?
@@ -39,6 +43,15 @@ exports.applyJob = (req, res) => {
           const resumeAbsolutePath = resumeFile
             ? path.join(process.cwd(), "uploads", "resumes", resumeFile)
             : null;
+
+          // Combine job description + required skills so the ML service
+          // knows EXACTLY which skills this job demands.
+          const requiredSkills = jobRow.required_skills || "";
+          const enhancedDescription =
+            (jobRow.description || "") +
+            (requiredSkills
+              ? `\n\nRequired Skills for this position: ${requiredSkills}`
+              : "");
 
           const fallbackScore = Number(jobRow.resume_score || 0);
           let final_match_percentage = 0;
@@ -55,7 +68,7 @@ exports.applyJob = (req, res) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   pdf_path: resumeAbsolutePath,
-                  job_description: jobRow.description || "",
+                  job_description: enhancedDescription,
                 }),
               });
 
@@ -64,7 +77,7 @@ exports.applyJob = (req, res) => {
                 final_match_percentage = Number(mlData.match_percentage || 0);
                 resume_score = Number(mlData.resume_score || 0);
                 project_score = Number(mlData.project_score || 0);
-                  overall_score = Number(mlData.overall_score || 0);
+                overall_score = Number(mlData.overall_score || 0);
 
                 if (String(mlData.decision || "").toLowerCase() === "rejected") {
                   status = "Rejected";
@@ -121,7 +134,7 @@ exports.getApplications = (req, res) => {
       a.user_id,
       a.job_id,
       a.match_percentage,
-      ROUND((a.match_percentage * 0.6) + (a.resume_score * 0.25) + (a.project_score * 0.15), 2) AS overall_score,
+      ROUND((a.match_percentage * 0.55) + (a.resume_score * 0.25) + (a.project_score * 0.20), 2) AS overall_score,
       a.resume_score,
       a.project_score,
       a.prediction,
@@ -157,7 +170,7 @@ exports.getRecruiterApplications = (req, res) => {
       a.user_id,
       a.job_id,
       a.match_percentage,
-      ROUND((a.match_percentage * 0.6) + (a.resume_score * 0.25) + (a.project_score * 0.15), 2) AS overall_score,
+      ROUND((a.match_percentage * 0.55) + (a.resume_score * 0.25) + (a.project_score * 0.20), 2) AS overall_score,
       a.resume_score,
       a.project_score,
       a.prediction,

@@ -145,32 +145,56 @@ def _extract_years_of_experience(text: str) -> float:
 
 
 def compute_match_percentage(resume_text: str, job_description: str) -> float:
-    """Compute semantic overlap between a resume and a job description using TF-IDF + keyword matching."""
+    """Compute semantic overlap between a resume and a job description.
+
+    Uses three signals:
+    1. TF-IDF cosine similarity  (20%) — general prose overlap
+    2. Keyword overlap ratio     (30%) — domain word overlap
+    3. Skill-to-skill matching   (50%) — dominant: checks which skills the
+       job requires and how many of those exist in the resume.
+    """
 
     if not resume_text.strip() or not job_description.strip():
         return 0.0
 
-    # TF-IDF cosine similarity
-    corpus = [clean_text(resume_text), clean_text(job_description)]
+    job_lower = clean_text(job_description)
+    resume_lower = clean_text(resume_text)
+
+    # ── 1. TF-IDF cosine similarity ──────────────────────────────────────────
+    corpus = [resume_lower, job_lower]
     vectorizer = TfidfVectorizer(stop_words="english")
     tfidf_matrix = vectorizer.fit_transform(corpus)
-    tfidf_similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-    
-    # Keyword overlap boost - count how many job description keywords appear in resume
-    job_keywords = set(clean_text(job_description).split())
-    resume_keywords = set(clean_text(resume_text).split())
-    
-    # Filter to meaningful keywords (not stop words, length > 3)
-    meaningful_keywords = [k for k in job_keywords if len(k) > 3]
-    if meaningful_keywords:
-        overlap_count = sum(1 for k in meaningful_keywords if k in resume_keywords)
-        keyword_match_ratio = overlap_count / len(meaningful_keywords)
+    tfidf_similarity = float(cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0])
+
+    # ── 2. Keyword overlap (meaningful words > 3 chars) ──────────────────────
+    job_words = set(job_lower.split())
+    resume_words = set(resume_lower.split())
+    meaningful = [w for w in job_words if len(w) > 3]
+    if meaningful:
+        keyword_match_ratio = sum(1 for w in meaningful if w in resume_words) / len(meaningful)
     else:
         keyword_match_ratio = 0.0
-    
-    # Combine: 60% TF-IDF + 40% keyword overlap, then scale to 0-100
-    combined_similarity = (tfidf_similarity * 0.6) + (keyword_match_ratio * 0.4)
-    return round(float(combined_similarity * 100), 2)
+
+    # ── 3. Skill-to-skill matching (DOMINANT signal) ─────────────────────────
+    # Find every skill from our master list that the job description mentions.
+    required_skills = [
+        skill for skill in SKILLS
+        if re.search(r"\b" + re.escape(skill.lower()) + r"\b", job_lower)
+    ]
+
+    if required_skills:
+        matched_skills = sum(
+            1 for skill in required_skills
+            if re.search(r"\b" + re.escape(skill.lower()) + r"\b", resume_lower)
+        )
+        skill_match_ratio = matched_skills / len(required_skills)
+    else:
+        # No recognised skills in job description – fall back to keyword overlap
+        skill_match_ratio = keyword_match_ratio
+
+    # ── Combine: 20% TF-IDF + 30% keyword + 50% skill match → scale to 0-100 ─
+    combined = (tfidf_similarity * 0.20) + (keyword_match_ratio * 0.30) + (skill_match_ratio * 0.50)
+    return round(float(combined * 100), 2)
 
 
 def compute_resume_score(resume_text: str) -> float:

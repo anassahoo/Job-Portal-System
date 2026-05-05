@@ -56,9 +56,20 @@ def format_prediction_response(result: dict) -> dict:
     match_percentage = float(result["scores"]["match_percentage"])
     resume_score = float(result["scores"]["resume_score"])
     project_score = float(result["scores"]["project_score"])
-    overall_score = round((match_percentage * 0.6) + (resume_score * 0.25) + (project_score * 0.15), 2)
-    decision = "Interview" if overall_score >= 50 else "Rejected"
-    reason = raw_reason if decision == "Rejected" else None
+    overall_score = round((match_percentage * 0.55) + (resume_score * 0.25) + (project_score * 0.20), 2)
+
+    # ── Hard gate ─────────────────────────────────────────────────────────────
+    # If match_percentage is below 35 the resume is simply not relevant to
+    # this job — reject immediately regardless of resume/project quality.
+    # A great resume for the WRONG job must still be rejected.
+    if match_percentage < 35.0:
+        decision = "Rejected"
+        reason = raw_reason if raw_reason else "Skill Gap"
+    else:
+        # Above the gate: combined score decides
+        decision = "Interview" if overall_score >= 40 else "Rejected"
+        reason = raw_reason if decision == "Rejected" else None
+
     return {
         "match_percentage": match_percentage,
         "resume_score": resume_score,
